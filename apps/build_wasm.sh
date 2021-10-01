@@ -19,4 +19,5 @@ files=$(find ${BUILD_DIR} -maxdepth 1 -type f | grep "\.wasm")
 for file in $files; do
     wasm-opt --strip $file -o $file
     sha256sum $file
+	cp $file ../registry/
 done

@@ -3,7 +3,7 @@ name = "pay-meal"
 version = "0.1.0"
 authors = ["The Affidaty Team <trinci@affidaty.io>"]
 edition = "2018"
-description = "pay-meal"
+description = "Contract from the Trinci SDK Tutorial"
 
 [lib]
 crate-type = ["cdylib"]

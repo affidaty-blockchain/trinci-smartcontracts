@@ -23,6 +23,8 @@ GROUP_ID=$(id -g $USER)
 # WILL NOT BE AN ISSUE.
 PROJECT_PATH=$(pwd)
 PROJECT_PATH_GUEST="/trinci-contracts"
+REGISTRY_PATH=$(pwd)"/../registry"
+REGISTRY_PATH_GUEST="/registry"
 GUEST_WD="${PROJECT_PATH_GUEST}/"
 
 # Build
@@ -31,14 +33,8 @@ docker run \
     --rm \
     -ti \
     -v $PROJECT_PATH:$PROJECT_PATH_GUEST \
+	-v $REGISTRY_PATH:$REGISTRY_PATH_GUEST \
     -w $GUEST_WD \
     -u $USER_ID:$GROUP_ID \
     davxy/rust-builder $COMMAND
-    
 
-# Push artifacts to the registry.
-
-#files=$(find build -maxdepth 1 -type f | grep "\.wasm")
-#(for file in $files; do
-#    cp $file ../registry/$newfile
-#done
