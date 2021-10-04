@@ -168,7 +168,7 @@ dependencies = [
 [[package]]
 name = "serde-value"
 version = "0.7.0"
-source = "git+https://github.com/davxy/serde-value?branch=helper_macro#1d8a03e84b87630c29e03d0ad94f13a161762a12"
+source = "git+https://github.com/affidaty-blockchain/serde-value?branch=helper_macro#1d8a03e84b87630c29e03d0ad94f13a161762a12"
 dependencies = [
  "ordered-float",
  "serde",
@@ -231,6 +231,7 @@ dependencies = [
 [[package]]
 name = "trinci-sdk"
 version = "0.1.1"
+source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust#25930dfa4a9cf73eed9b3ccabe077f07cb74c5ab"
 dependencies = [
  "bs58",
  "hex",
