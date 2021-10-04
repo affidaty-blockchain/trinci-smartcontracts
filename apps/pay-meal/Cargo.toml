@@ -9,7 +9,7 @@ description = "Contract from the Trinci SDK Tutorial"
 crate-type = ["cdylib"]
 
 [dependencies]
-trinci-sdk = { git ="https://github.com/affidaty-blockchain/trinci-sdk-rust" }
+trinci-sdk = { git = "https://github.com/affidaty-blockchain/trinci-sdk-rust" }
 serde = "1.0.126"
 serde_derive = "1.0.126"
 
