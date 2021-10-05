@@ -1,7 +1,7 @@
 {
     "name": "arya",
     "version": "0.0.1",
-    "description": "Smart contract for personal infirmation/certificates storage, management and verification.",
+    "description": "Smart contract for personal information/certificates storage, management and verification.",
     "scripts": {
         "asbuild:debug": "asc assembly/index.ts --config asconfig.json --target debug --transform ./msgpackable.ts --use abort=",
         "asbuild:release": "asc assembly/index.ts --config asconfig.json --target release --transform ./msgpackable.ts --use abort=",
