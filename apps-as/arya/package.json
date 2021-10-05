@@ -1,9 +1,8 @@
 {
-    "name": "arya_smart_contract",
+    "name": "arya",
     "version": "0.0.1",
-    "description": "",
+    "description": "Smart contract for personal infirmation/certificates storage, management and verification.",
     "scripts": {
-        "init": "npx asscinit",
         "asbuild:debug": "asc assembly/index.ts --config asconfig.json --target debug --transform ./msgpackable.ts --use abort=",
         "asbuild:release": "asc assembly/index.ts --config asconfig.json --target release --transform ./msgpackable.ts --use abort=",
         "asbuild": "npm run asbuild:debug && npm run asbuild:release"
