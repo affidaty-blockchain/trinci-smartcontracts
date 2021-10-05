@@ -1,4 +1,4 @@
-import { Types, Utils, MemUtils, HostFunctions, MsgPack } from '../node_modules/@developer2/as-sdk'
+import { Types, Utils, MemUtils, HostFunctions, MsgPack } from '../node_modules/@affidaty/trinci-sdk-as'
 import { Writer, Encoder, Decoder, Sizer } from '@wapc/as-msgpack';
 
 export function my_alloc(size: i32): i32 {

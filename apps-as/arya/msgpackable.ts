@@ -1,11 +1,11 @@
 // import { ClassDecorator, registerDecorator } from './src/decorator';
 // import { getName, getTypeName, toString } from './src/utils';
-import { ClassDecorator, registerDecorator, utils, SimpleParser } from "@developer2/as-sdk/visitor-as-cjs";
+import { ClassDecorator, registerDecorator, utils, SimpleParser } from "@affidaty/trinci-sdk-as/visitor-as-cjs";
 import {
     FieldDeclaration,
     MethodDeclaration,
     ClassDeclaration,
-} from "@developer2/as-sdk/visitor-as-cjs/as";
+} from "@affidaty/trinci-sdk-as/visitor-as-cjs/as";
 
 
 function getStructure(node: ClassDeclaration): string[][] {
