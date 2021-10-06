@@ -18,4 +18,3 @@ libmath = "0.2.1"
 hex = "0.4.3"
 hashers = "1.0.1"
 
-[workspace]
