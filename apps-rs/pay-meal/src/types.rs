@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -6,20 +6,17 @@ use serde_derive::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, PartialEq, Clone))]
 pub struct InitArgs<'a> {
-    pub restaurateur: &'a str, // is the merchant account
-    pub asset: &'a str,        // is the asset account
-    pub part: u64,             // is the the share for each diner
-    #[cfg_attr(test, serde(serialize_with = "tests::ser_ordered_map"))]
-    pub customers: HashMap<&'a str, bool>, // the diners list
-    pub status: &'a str,       // status of the contract: "open", "closed"
+    pub restaurateur: &'a str,              // is the merchant account
+    pub asset: &'a str,                     // is the asset account
+    pub part: u64,                          // is the the share for each diner
+    pub customers: BTreeMap<&'a str, bool>, // the diners list
+    pub status: &'a str,                    // status of the contract: "open", "closed"
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
 
     use std::collections::BTreeMap;
-
-    use serde::{Serialize, Serializer};
 
     use super::*;
 
@@ -32,19 +29,8 @@ pub(crate) mod tests {
     pub(crate) const CUSTOMER2_ID: &str = "QmCustomer2-T8ijsdfWs35d3KqN1kGBgYxFWsxajjguLk";
     pub(crate) const CUSTOMER3_ID: &str = "QmCustomer3-T8ijsdfWs35d3KqN1kGBgYxFWsxajjguLk";
 
-    pub(crate) fn ser_ordered_map<S>(
-        value: &HashMap<&str, bool>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let ordered: BTreeMap<_, _> = value.iter().collect();
-        ordered.serialize(serializer)
-    }
-
     pub(crate) fn create_init_args() -> InitArgs<'static> {
-        let mut customers = HashMap::new();
+        let mut customers = BTreeMap::new();
         customers.insert(CUSTOMER3_ID, false);
         customers.insert(CUSTOMER2_ID, false);
         customers.insert(CUSTOMER1_ID, false);

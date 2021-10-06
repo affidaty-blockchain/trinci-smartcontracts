@@ -27,8 +27,16 @@ Additional labels for pre-release metadata:
 * rc.x: stable release candidate.
 
 
+0.1.1 - 06-10-2021
+------------------
+
+Changed
+* Replaced HashMap with BTreeMap
+
+
 0.1.0 - 07-09-2021
 ------------------
 
 Added
 * `init`, `get_info`, `apply`, `close` methods
+
