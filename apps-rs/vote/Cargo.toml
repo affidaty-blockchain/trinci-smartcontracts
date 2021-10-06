@@ -1,0 +1,21 @@
+[package]
+name = "vote"
+version = "0.1.2"
+authors = ["The Affidaty Team <trinci@affidaty.io>"]
+edition = "2018"
+description = "Voting application"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+trinci-sdk = { git = "https://github.com/affidaty-blockchain/trinci-sdk-rust" }
+serde = "1.0.130"
+serde_derive = "1.0.130"
+rmp-serde = "0.15.4"
+num-bigint = "0.4.0"
+serde_bytes = "0.11.5"
+
+[dev-dependencies]
+hex = "0.4.3"
+lazy_static = "1.4.0"
