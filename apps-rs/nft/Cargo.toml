@@ -1,0 +1,19 @@
+[package]
+name = "nft"
+version = "0.2.0"
+authors = ["The Affidaty Team <trinci@affidaty.io>"]
+edition = "2018"
+description = "NFT contract"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+trinci-sdk = { git = "https://github.com/affidaty-blockchain/trinci-sdk-rust" }
+serde = { version = "1.0.126", features = ["derive"] }
+serde_bytes = "0.11.5"
+libmath = "0.2.1"
+
+
+[dev-dependencies]
+hex = "0.4.3"
