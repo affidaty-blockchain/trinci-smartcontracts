@@ -1,3 +1,4 @@
 **/target
-apps/build/
+apps-rs/build/
 .vscode
+apps-rs/tmp/
