@@ -1,13 +1,13 @@
 {
     "targets": {
         "debug": {
-            "binaryFile": "build/debug.wasm",
-            "textFile": "build/debug.wat",
+            "binaryFile": "build/arya.wasm",
+            "textFile": "build/arya.wat",
             "debug": true
         },
         "release": {
-            "binaryFile": "build/release.wasm",
-            "textFile": "build/release.wat",
+            "binaryFile": "build/arya.wasm",
+            "textFile": "build/arya.wat",
             "optimizeLevel": 3,
             "shrinkLevel": 0,
             "converge": false,
