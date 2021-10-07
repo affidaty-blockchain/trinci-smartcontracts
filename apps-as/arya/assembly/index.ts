@@ -1,3 +1,5 @@
+import { encode as b58encode, decode as b58decode } from 'as-base58';
+import { Sha256 } from 'as-hmac-sha2/assembly';
 import { Types, Utils, MemUtils, HostFunctions, MsgPack } from '../node_modules/@affidaty/trinci-sdk-as'
 import { Writer, Encoder, Decoder, Sizer } from '@wapc/as-msgpack';
 
@@ -140,6 +142,54 @@ function removeProfileData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombined
 // END - PROFILE DATA MANAGEMENT
 // BEGIN - CERTIFICATES MANAGEMENT
 
+class Certifier {
+    type: string = '';
+    curve: string = '';
+    value: ArrayBuffer = new ArrayBuffer(0);
+}
+
+class CertData {
+    fields: string[] = [];
+    salt: ArrayBuffer = new ArrayBuffer(0);
+    root: ArrayBuffer = new ArrayBuffer(0);
+    certifier: Certifier = new Certifier();
+}
+class Certificate {
+    data: CertData = new CertData();
+    signature: ArrayBuffer = new ArrayBuffer(0);
+    multiProof: ArrayBuffer[] = [];
+}
+
+function decodeCertificate(certBytes: ArrayBuffer): Certificate {
+    let decoder = new Decoder(certBytes);
+
+    let resultCert = new Certificate();
+
+    let hasMultiProof = false
+    if(decoder.readArraySize() == 3) {
+        hasMultiProof = true;
+    }
+
+    decoder.readArraySize();
+    let fieldsNum = decoder.readArraySize();
+    for (let i: u32 = 0; i < fieldsNum; i++) {
+        resultCert.data.fields.push(decoder.readString());
+    }
+    resultCert.data.salt = decoder.readByteArray();
+    resultCert.data.root = decoder.readByteArray();
+    decoder.readArraySize();
+    resultCert.data.certifier.type = decoder.readString();
+    resultCert.data.certifier.curve = decoder.readString();
+    resultCert.data.certifier.value = decoder.readByteArray();
+    resultCert.signature = decoder.readByteArray();
+    if (hasMultiProof) {
+        resultCert.multiProof = decoder.readArray<ArrayBuffer>((decoder: Decoder) => {
+            return decoder.readByteArray()
+        })
+    }
+    return resultCert;
+}
+
 function certsListDecode(certsList: ArrayBuffer): Map<string, ArrayBuffer> {
     let decoder = new Decoder(certsList);
     let result = new Map<string, ArrayBuffer>();
@@ -177,11 +227,52 @@ class SetCertArgs {
     certificate: ArrayBuffer = new ArrayBuffer(0);
 }
 
+function arrayBufferToHexString(ab: ArrayBuffer): string {
+    let result: string = '';
+    let dataView = new DataView(ab);
+    for (let i = 0; i < dataView.byteLength; i++) {
+        result += dataView.getUint8(i).toString(16);
+    }
+    return result;
+}
+
+function rawKeyToAccountId(rawPubKey: ArrayBuffer): string {
+    const protobufHeader: u8[] = [
+        0x08, 0x03, // Algorythm type identifier (ECDSA)
+        0x12, 0x78, // Content length
+    ];
+    const asn1Header: u8[]
+     = [
+        0x30, 0x76, // byte count
+        0x30, 0x10, // byte len
+        0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, // EC Public key OID
+        0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22, // secp384r1 curve OID
+        0x03, 0x62, 0x00, // bitstring (bytes count)
+    ];
+    let data: u8[] = [];
+    data = data.concat(protobufHeader);
+    data = data.concat(asn1Header);
+    data = data.concat(Utils.arrayBufferToU8Array(rawPubKey));
+    const hash: Uint8Array = Sha256.hash(Utils.u8ArrayToUint8Array(data));
+    const multihashHeader: u8[] = [
+        0x12, // hash algorithm identifier (SHA256)
+        0x20, // hash length  (32)
+    ];
+    let accountIdBytes: u8[] = [];
+    accountIdBytes = accountIdBytes.concat(multihashHeader);
+    accountIdBytes = accountIdBytes.concat(Utils.uint8ArrayToU8Array(hash));
+    let accountId: string = b58encode(Utils.u8ArrayToUint8Array(accountIdBytes));
+    HostFunctions.log('=========================================');
+    HostFunctions.log(accountId);
+    return accountId;
+}
+
 function setCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
     let success = false;
     let resultBytes: u8[] = [0xc0];
     if (argsU8.length > 0) {
         let setCertArgs = MsgPack.deserialize<SetCertArgs>(argsU8);
+        let certificate = decodeCertificate(setCertArgs.certificate);
 
         let identity = new Identity();
         let identityBytes = HostFunctions.loadAsset(setCertArgs.target);
@@ -193,7 +284,7 @@ function setCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr
         if (certsListBytes.byteLength > 0) {
             certsList = certsListDecode(certsListBytes);
         }
-        let issuer = ctx.origin; // TODO: get it from certificate itself
+        let issuer = rawKeyToAccountId(certificate.data.certifier.value);
         let certKey = `${issuer}:${setCertArgs.key}`;
         certsList.set(certKey, setCertArgs.certificate);
         identity.certificates = certsListEncode(certsList);
@@ -247,7 +338,7 @@ function removeCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombined
             success = true;
             resultBytes = [0xc0];
         } else {
-            resultBytes = Utils.stringtoU8Array('Not permitted');
+            resultBytes = Utils.stringtoU8Array('Not allowed');
         }
     } else {
         resultBytes = Utils.stringtoU8Array('Arguments error.');
