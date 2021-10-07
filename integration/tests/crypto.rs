@@ -22,6 +22,7 @@ use integration::{
 };
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use trinci_sdk::value;
 
 use std::collections::HashMap;
 use trinci_core::{
@@ -146,11 +147,15 @@ fn verify_ed25519_tx(
         pb: kp.public_key(),
     };
 
-    let data = &hex::decode(&DATA_HEX).unwrap();
+    let data = vec![1u8, 2, 3];
 
-    let sign = &kp.sign(data).unwrap();
+    let sign = kp.sign(&data).unwrap();
 
-    let mut args = VerifyArgs { pk, data, sign };
+    let mut args = VerifyArgs {
+        pk,
+        data: &data,
+        sign: &sign,
+    };
 
     if !valid {
         args.sign = &[5, 6, 7];
@@ -166,6 +171,48 @@ fn verify_ed25519_tx(
     )
 }
 
+fn verify_merkle_tree_multiproof_tx(
+    owner_info: &AccountInfo,
+    user_info: &AccountInfo,
+    valid: bool,
+) -> Transaction {
+    let root = "f4d7d35867fb16f0399a60046a0d9f93a111adc50ab6c09c57c4885e0cba25a7";
+    let indices = vec![1, 3];
+    let mut leaves = vec![
+        "4878a1d5f33d18548fb35e16323a22cb3cf81f6007c1c9810ffdb39c02ba6340",
+        "4b76bbf06c32ab4dc45c13cb1c50a98d94d8fdee6a6284b8f52302a599dcaf0e",
+    ];
+    let depth = 3;
+
+    let proofs = vec![
+        "f1aff4a340342b07481cb87423a167c6955022668815f0801d4be37d8e50397f",
+        "38c4ad2cb0b6cffba3b842dac4ba2e74e6685a65ed9460d24bea8fc6aa1dcaf4",
+        "f9637951f10bd9e355419b1f84fd9efba0c8abcf5fd8e8381e46fe856482ee6e",
+    ];
+
+    if !valid {
+        leaves[1] = "BAD_bbf06c32ab4dc45c13cb1c50a98d94d8fdee6a6284b8f52302a599dcaf0e";
+        //  <- BAD HEX
+    }
+
+    let args = value!({
+        "root": root,
+        "indices": indices,
+        "leaves": leaves,
+        "depth": depth,
+        "proofs": proofs,
+    });
+
+    common::create_test_tx(
+        &owner_info.id,
+        &user_info.pub_key,
+        &user_info.pvt_key,
+        *CRYPTO_APP_HASH,
+        "merkle_tree_verify",
+        args,
+    )
+}
+
 fn create_txs() -> Vec<Transaction> {
     let owner_info = ACCOUNTS_INFO.get(OWNER_ALIAS).unwrap();
     let user_info = ACCOUNTS_INFO.get(USER_ALIAS).unwrap();
@@ -177,10 +224,14 @@ fn create_txs() -> Vec<Transaction> {
         verify_ecdsa_tx(owner_info, user_info, true),
         // 2. Verify ECDSA bad signature. This shall fail
         verify_ecdsa_tx(owner_info, user_info, false),
-        // 3. Verify ED25519 signature.
+        // 3. Verify ED25519 signature. This fails because the sdk does not support ed25519 pk
         verify_ed25519_tx(owner_info, user_info, true),
-        // 3. Verify ED25519 bad signature. This shall fail.
+        // 4. Verify ED25519 bad signature. This shall fail. This fails because the sdk does not support ed25519 pk.
         verify_ed25519_tx(owner_info, user_info, false),
+        // 5. Verify merkle tree
+        verify_merkle_tree_multiproof_tx(owner_info, user_info, true),
+        // 6. Verify BAD HEX merkle tree. This shall fail
+        verify_merkle_tree_multiproof_tx(owner_info, user_info, false),
     ]
 }
 
@@ -197,14 +248,18 @@ fn check_rxs(rxs: Vec<Receipt>) {
     assert!(rxs[2].success);
     let res: bool = rmp_deserialize(&rxs[2].returns).unwrap();
     assert_eq!(res, false);
-    // 3. Verify ED25519 signature.
-    assert!(rxs[1].success);
-    let res: bool = rmp_deserialize(&rxs[1].returns).unwrap();
-    assert_eq!(res, true);
-    // 2. Verify ED25519 bad signature. This shall fail.
-    assert!(rxs[2].success);
-    let res: bool = rmp_deserialize(&rxs[2].returns).unwrap();
-    assert_eq!(res, false);
+    // 3. Verify ED25519 signature. This fails because the sdk does not support ed25519 pk.
+    assert!(!rxs[3].success);
+    // 4. Verify ED25519 bad signature. This shall fail. This fails because the sdk does not support ed25519 pk.
+    assert!(!rxs[4].success);
+    // 5. Verify merkle tree
+    assert!(rxs[5].success);
+    // 6. Verify BAD HEX merkle tree. This shall fail
+    assert!(!rxs[6].success);
+    assert_eq!(
+        "smart contract fault: error in leaves hex",
+        String::from_utf8_lossy(&rxs[6].returns)
+    );
 }
 
 #[test]
