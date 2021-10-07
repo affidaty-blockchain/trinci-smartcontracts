@@ -1,20 +1,50 @@
+// This file is part of TRINCI.
+//
+// Copyright (C) 2021 Affidaty Spa.
+//
+// TRINCI is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Affero General Public License as published by the
+// Free Software Foundation, either version 3 of the License, or (at your
+// option) any later version.
+//
+// TRINCI is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+// for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with TRINCI. If not, see <https://www.gnu.org/licenses/>.
+
 //! Crypto
 //! Crypto Contract Library with methods callable from other contracts
 //!
 //! ### Methods
 //!
-//!  - Hash     SHA256, SHA384, SHA512
-//!  - Verify   Ecdsa_P384
+//!  - hash                 SHA256, SHA384, SHA512
+//!  - verify               Ecdsa_P384
+//!  - merkle_tree_verify   Verify multiproof merkle tree leaves
 
 use sha2::{Digest, Sha256, Sha384, Sha512};
-
 use trinci_sdk::{AppContext, WasmResult};
 
+mod merkle_tree;
 mod types;
 
+use merkle_tree::verify_merkle_tree_multiproof;
 use types::*;
 
-trinci_sdk::app_export!(verify, hash);
+trinci_sdk::app_export!(verify, hash, merkle_tree_verify);
+
+/// Verify multiproof merkle tree
+fn merkle_tree_verify(_ctx: AppContext, args: MerkleTreeVerifyArgs) -> WasmResult<()> {
+    verify_merkle_tree_multiproof(
+        args.root,
+        &args.indices,
+        &args.leaves,
+        args.depth,
+        &args.proofs,
+    )
+}
 
 /// Calculate hash.
 fn hash(_ctx: AppContext, args: HashArgs) -> WasmResult<Vec<u8>> {
@@ -47,6 +77,8 @@ pub fn verify(_ctx: AppContext, args: VerifyArgs) -> WasmResult<bool> {
 
 #[cfg(test)]
 mod tests {
+
+    use crate::types::tests::create_merkle_tree_verify_args;
 
     use super::*;
     use trinci_sdk::ecdsa::{CurveId, PublicKey};
@@ -127,5 +159,38 @@ mod tests {
         let res = not_wasm::call_wrap(hash, ctx, args.clone()).unwrap();
 
         assert_eq!(res, hex::decode(SHA384_HASH_HEX).unwrap());
+    }
+
+    #[test]
+    fn test_merkle_tree_verify() {
+        let ctx = not_wasm::create_app_context(CALLER_ID, CALLER_ID);
+
+        let args = create_merkle_tree_verify_args();
+
+        not_wasm::call_wrap(merkle_tree_verify, ctx, args.clone()).unwrap();
+    }
+
+    #[test]
+    fn test_merkle_tree_verify_not_valid_leaf() {
+        let ctx = not_wasm::create_app_context(CALLER_ID, CALLER_ID);
+
+        let mut args = create_merkle_tree_verify_args();
+        args.leaves[0] = "BAD8a1d5f33d18548fb35e16323a22cb3cf81f6007c1c9810ffdb39c02ba6340"; // <-- Not valid
+
+        let err = not_wasm::call_wrap(merkle_tree_verify, ctx, args.clone()).unwrap_err();
+
+        assert_eq!(err.to_string(), "invalid leaves")
+    }
+
+    #[test]
+    fn test_merkle_tree_verify_bad_hex() {
+        let ctx = not_wasm::create_app_context(CALLER_ID, CALLER_ID);
+
+        let mut args = create_merkle_tree_verify_args();
+        args.root = "BAD_d35867fb16f0399a60046a0d9f93a111adc50ab6c09c57c4885e0cba25a7"; // <- Bad HEX
+
+        let err = not_wasm::call_wrap(merkle_tree_verify, ctx, args.clone()).unwrap_err();
+
+        assert_eq!(err.to_string(), "invalid `root` hex");
     }
 }

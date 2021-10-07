@@ -27,10 +27,19 @@ Additional labels for pre-release metadata:
 * rc.x: stable release candidate.
 
 
+0.2.1 - 07-10-2021
+------------------
+
+Added
+* merkle_tree_verify method with merkle tree multiproof verify
+
+
 0.2.0 - 10-09-2021
 ------------------
+
 Changed
 * updated to PublicKey new implementation
+
 
 0.1.0 - 01-09-2021
 ------------------
