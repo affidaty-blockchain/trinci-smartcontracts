@@ -21,4 +21,4 @@ done
 name=${name// /-}
 
 
-cargo generate --git git@github.com:affidaty-blockchain/trinci-contract-template.git --name $name
+cargo generate --git https://github.com/affidaty-blockchain/trinci-contract-template.git --name $name
