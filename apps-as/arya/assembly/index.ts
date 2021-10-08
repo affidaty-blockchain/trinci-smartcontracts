@@ -1,7 +1,20 @@
-import { encode as b58encode, decode as b58decode } from 'as-base58';
-import { Sha256 } from 'as-hmac-sha2/assembly';
-import { Types, Utils, MemUtils, HostFunctions, MsgPack } from '../node_modules/@affidaty/trinci-sdk-as'
-import { Writer, Encoder, Decoder, Sizer } from '@wapc/as-msgpack';
+import { encode as b58encode } from 'as-base58';
+import { Sha256 } from '../node_modules/as-hmac-sha2/assembly';
+import { Types, Utils, MemUtils, HostFunctions, MsgPack } from '../node_modules/@affidaty/trinci-sdk-as';
+import {
+    RemoveProfileDataArgs,
+    SetCertArgs,
+    RemoveCertArgs,
+    Identity,
+} from './types';
+import {
+    profileDataDecode,
+    profileDataEncode,
+    decodeCertificate,
+    certsListDecode,
+    certsListEncode,
+    certDataEncodeForVerify,
+} from './msgpack';
 
 export function my_alloc(size: i32): i32 {
     return heap.alloc(size) as i32;
@@ -27,47 +40,7 @@ export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i
     return methodsMap.get(ctx.method)(ctx, argsU8);
 }
 
-// Uppermost level
-@msgpackable
-class Identity {
-    profile: ArrayBuffer = new ArrayBuffer(0);
-    certificates: ArrayBuffer = new ArrayBuffer(0);
-}
-
 // BEGIN - PROFILE DATA MANAGEMENT
-
-function profileDataDecode(dataU8Arr: u8[]): Map<string, string> {
-    let dataArrayBuffer = Utils.u8ArrayToArrayBuffer(dataU8Arr);
-    let result = new Map<string, string>();
-    let decoder = new Decoder(dataArrayBuffer);
-    let mapSize = decoder.readMapSize();
-    for (let i: u32 = 0; i < mapSize; i++) {
-        let key = decoder.readString();
-        let val = decoder.readString();
-        result.set(key, val);
-    }
-    return result;
-}
-
-function dataMapEncode(writer: Writer, dataMap: Map<string, string>): void {
-    writer.writeMapSize(dataMap.size);
-    const keys = dataMap.keys();
-    for (let i: i32 = 0; i < keys.length; i++) {
-        const key = keys[i];
-        const value = dataMap.get(key);
-        writer.writeString(key);
-        writer.writeString(value);
-    }
-}
-
-function profileDataEncode(dataMap: Map<string, string>): u8[] {
-    let sizer = new Sizer();
-    dataMapEncode(sizer, dataMap);
-    let arrayBuffer = new ArrayBuffer(sizer.length);
-    let encoder = new Encoder(arrayBuffer);
-    dataMapEncode(encoder, dataMap);
-    return Utils.arrayBufferToU8Array(arrayBuffer);
-}
 
 function setProfileData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
     let success = false;
@@ -96,11 +69,6 @@ function setProfileData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr
         resultBytes = Utils.stringtoU8Array('Arguments error.');
     }
     return MsgPack.appOutputEncode(success, resultBytes);
-}
-
-@msgpackable
-class RemoveProfileDataArgs {
-    keys: string[] = [];
 }
 
 function removeProfileData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
@@ -142,101 +110,7 @@ function removeProfileData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombined
 // END - PROFILE DATA MANAGEMENT
 // BEGIN - CERTIFICATES MANAGEMENT
 
-class Certifier {
-    type: string = '';
-    curve: string = '';
-    value: ArrayBuffer = new ArrayBuffer(0);
-}
-
-class CertData {
-    fields: string[] = [];
-    salt: ArrayBuffer = new ArrayBuffer(0);
-    root: ArrayBuffer = new ArrayBuffer(0);
-    certifier: Certifier = new Certifier();
-}
-class Certificate {
-    data: CertData = new CertData();
-    signature: ArrayBuffer = new ArrayBuffer(0);
-    multiProof: ArrayBuffer[] = [];
-}
-
-function decodeCertificate(certBytes: ArrayBuffer): Certificate {
-    let decoder = new Decoder(certBytes);
-
-    let resultCert = new Certificate();
-
-    let hasMultiProof = false
-    if(decoder.readArraySize() == 3) {
-        hasMultiProof = true;
-    }
-
-    decoder.readArraySize();
-    let fieldsNum = decoder.readArraySize();
-    for (let i: u32 = 0; i < fieldsNum; i++) {
-        resultCert.data.fields.push(decoder.readString());
-    }
-    resultCert.data.salt = decoder.readByteArray();
-    resultCert.data.root = decoder.readByteArray();
-    decoder.readArraySize();
-    resultCert.data.certifier.type = decoder.readString();
-    resultCert.data.certifier.curve = decoder.readString();
-    resultCert.data.certifier.value = decoder.readByteArray();
-    resultCert.signature = decoder.readByteArray();
-    if (hasMultiProof) {
-        resultCert.multiProof = decoder.readArray<ArrayBuffer>((decoder: Decoder) => {
-            return decoder.readByteArray()
-        })
-    }
-    return resultCert;
-}
-
-function certsListDecode(certsList: ArrayBuffer): Map<string, ArrayBuffer> {
-    let decoder = new Decoder(certsList);
-    let result = new Map<string, ArrayBuffer>();
-    let mapSize = decoder.readMapSize();
-    for (let i: u32 = 0; i < mapSize; i++) {
-        let key = decoder.readString();
-        let value = decoder.readByteArray();
-        result.set(key, value);
-    }
-    return result;
-}
-
-function writeCertsList(writer: Writer, certsMap: Map<string, ArrayBuffer>): void {
-    writer.writeMapSize(certsMap.size);
-    const keys = certsMap.keys();
-    for (let i: i32 = 0; i < keys.length; i++) {
-        writer.writeString(keys[i]);
-        writer.writeByteArray(certsMap.get(keys[i]));
-    }
-}
-
-function certsListEncode(certsMap: Map<string, ArrayBuffer>): ArrayBuffer {
-    let sizer = new Sizer();
-    writeCertsList(sizer, certsMap);
-    let arrayBuffer = new ArrayBuffer(sizer.length);
-    let encoder = new Encoder(arrayBuffer);
-    writeCertsList(encoder, certsMap);
-    return arrayBuffer;
-}
-
-@msgpackable
-class SetCertArgs {
-    target: string = '';
-    key: string = '';
-    certificate: ArrayBuffer = new ArrayBuffer(0);
-}
-
-function arrayBufferToHexString(ab: ArrayBuffer): string {
-    let result: string = '';
-    let dataView = new DataView(ab);
-    for (let i = 0; i < dataView.byteLength; i++) {
-        result += dataView.getUint8(i).toString(16);
-    }
-    return result;
-}
-
-function rawKeyToAccountId(rawPubKey: ArrayBuffer): string {
+function rawPubKeyToAccountId(rawPubKey: ArrayBuffer): string {
     const protobufHeader: u8[] = [
         0x08, 0x03, // Algorythm type identifier (ECDSA)
         0x12, 0x78, // Content length
@@ -262,8 +136,6 @@ function rawKeyToAccountId(rawPubKey: ArrayBuffer): string {
     accountIdBytes = accountIdBytes.concat(multihashHeader);
     accountIdBytes = accountIdBytes.concat(Utils.uint8ArrayToU8Array(hash));
     let accountId: string = b58encode(Utils.u8ArrayToUint8Array(accountIdBytes));
-    HostFunctions.log('=========================================');
-    HostFunctions.log(accountId);
     return accountId;
 }
 
@@ -273,7 +145,11 @@ function setCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr
     if (argsU8.length > 0) {
         let setCertArgs = MsgPack.deserialize<SetCertArgs>(argsU8);
         let certificate = decodeCertificate(setCertArgs.certificate);
-
+        let dataToVerify = certDataEncodeForVerify(certificate.data);
+        let valid = HostFunctions.verify(certificate.data.certifier, dataToVerify, Utils.arrayBufferToU8Array(certificate.signature));
+        if (!valid) {
+            return MsgPack.appOutputEncode(false, Utils.stringtoU8Array('Invalid certificate signature.'));
+        }
         let identity = new Identity();
         let identityBytes = HostFunctions.loadAsset(setCertArgs.target);
         if (identityBytes.length > 0) {
@@ -284,7 +160,7 @@ function setCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr
         if (certsListBytes.byteLength > 0) {
             certsList = certsListDecode(certsListBytes);
         }
-        let issuer = rawKeyToAccountId(certificate.data.certifier.value);
+        let issuer = rawPubKeyToAccountId(certificate.data.certifier.value);
         let certKey = `${issuer}:${setCertArgs.key}`;
         certsList.set(certKey, setCertArgs.certificate);
         identity.certificates = certsListEncode(certsList);
@@ -295,13 +171,6 @@ function setCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr
         resultBytes = Utils.stringtoU8Array('Arguments error.');
     }
     return MsgPack.appOutputEncode(success, resultBytes);
-}
-
-@msgpackable
-class RemoveCertArgs {
-    target: string = '';
-    issuer: string = '';
-    keys: string[] = [];
 }
 
 function removeCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
