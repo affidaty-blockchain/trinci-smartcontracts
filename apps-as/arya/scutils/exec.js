@@ -46,10 +46,14 @@ async function execArya() {
     console.log(`TICKET : ${ticket}`);
     let receipt = await c.waitForTicket(ticket);
     console.log(`SUCCESS: ${receipt.success}`);
-    console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
-    console.log('ARYA ASSET DATA ON TARGET:');
-    let accData = await c.accountData(testAcc);
-    console.log(Buffer.from(accData.assets[testAcc.accountId]).toString('hex'));
+    if (receipt.success) {
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        console.log('ARYA ASSET DATA ON TARGET:');
+        let accData = await c.accountData(testAcc);
+        console.log(Buffer.from(accData.assets[testAcc.accountId]).toString('hex'));
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
 }
 
 // async function execHash() {
