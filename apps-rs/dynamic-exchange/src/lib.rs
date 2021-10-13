@@ -98,7 +98,7 @@ pub fn get_info(ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> 
 
     trinci_sdk::asset_lock(config.asset, ctx.owner, LockType::None)?;
     let amount = trinci_sdk::asset_balance(config.asset)?;
-    trinci_sdk::asset_lock(config.asset, ctx.owner, LockType::Full)?;
+    trinci_sdk::asset_lock(config.asset, ctx.owner, LockType::Withdraw)?;
 
     let info = DynamicExchangeInfo {
         config,
@@ -134,7 +134,6 @@ pub fn abort(ctx: AppContext, _args: PackedValue) -> WasmResult<()> {
     let guarantor_part;
     let seller_part;
     let penalty_fee_origin;
-    let lock_penalty_asset;
     if config.asset == config.penalty_asset {
         guarantor_part = math::round::half_up(
             remaining_amount as f64 * config.penalty_fee as f64 / 1000f64,
@@ -142,12 +141,10 @@ pub fn abort(ctx: AppContext, _args: PackedValue) -> WasmResult<()> {
         ) as u64; // penalty fee
         seller_part = remaining_amount - guarantor_part;
         penalty_fee_origin = ctx.owner;
-        lock_penalty_asset = false;
     } else {
         guarantor_part = config.penalty_fee; // penalty_fee is an amount and not a percentage
         seller_part = remaining_amount;
         penalty_fee_origin = config.seller;
-        lock_penalty_asset = true;
     }
 
     // Transfer Asset1 from Exchange to Seller
@@ -165,9 +162,7 @@ pub fn abort(ctx: AppContext, _args: PackedValue) -> WasmResult<()> {
         .map_err(|_err| WasmError::new("failed transfer penalty_fee to guarantor"))?;
     }
     trinci_sdk::asset_lock(config.asset, ctx.owner, LockType::Full)?;
-    if lock_penalty_asset {
-        trinci_sdk::asset_lock(config.penalty_asset, ctx.owner, LockType::Full)?;
-    }
+
     // Puts the exchange status to Aborted
     set_status(DynamicExchangeStatus::Aborted)?;
 
@@ -246,7 +241,7 @@ pub fn apply(ctx: AppContext, args: ApplyArgs) -> WasmResult<()> {
 #[cfg(test)]
 mod tests {
 
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use crate::types::tests::{
         create_dynamic_exchange_config, ASSET1_ID, ASSET_ID, BUYER_ID, DYNAMIC_EXCHANGE_ID,
@@ -278,7 +273,7 @@ mod tests {
             ASSET_ID,
             Asset {
                 units: exchange_amount,
-                lock: None,
+                lock: Some((LockPrivilege::Contract, LockType::Withdraw)),
             },
         );
 
@@ -351,14 +346,14 @@ mod tests {
     }
 
     #[test]
-    fn bad_args_initialization_1() {
+    fn bad_args_initialization_empty_assets_list() {
         // Missing assets
         let ctx = not_wasm::create_app_context(DYNAMIC_EXCHANGE_ID, DYNAMIC_EXCHANGE_ID);
         not_wasm::set_contract_method(ASSET_ID, "balance", not_wasm::asset_balance);
         not_wasm::set_contract_method(ASSET_ID, "lock", not_wasm::asset_lock);
         not_wasm::set_account_asset_gen(DYNAMIC_EXCHANGE_ID, ASSET_ID, Asset::new(1000));
         let mut args = types::tests::create_dynamic_exchange_config(ASSET_ID);
-        args.assets = HashMap::new();
+        args.assets = BTreeMap::new();
 
         let err = not_wasm::call_wrap(init, ctx, args.clone()).unwrap_err();
 
@@ -366,7 +361,7 @@ mod tests {
     }
 
     #[test]
-    fn bad_args_initialization_2() {
+    fn bad_args_initialization_penalty_asset_empty() {
         // Missing penalty_asset
         let ctx = not_wasm::create_app_context(DYNAMIC_EXCHANGE_ID, DYNAMIC_EXCHANGE_ID);
         not_wasm::set_contract_method(ASSET_ID, "balance", not_wasm::asset_balance);

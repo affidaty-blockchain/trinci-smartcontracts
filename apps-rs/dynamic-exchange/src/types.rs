@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fmt::{self, Display},
 };
 
@@ -44,8 +44,7 @@ pub struct DynamicExchangeConfig<'a> {
     pub guarantor_fee: u64,
     pub penalty_fee: u64, // This is a percentage if the penalty_asset is the same as the source asset, is an amount instead
     pub penalty_asset: &'a str, // Currently is the same of the src asset
-    #[cfg_attr(test, serde(serialize_with = "tests::ser_ordered_map"))]
-    pub assets: HashMap<&'a str, u64>,
+    pub assets: BTreeMap<&'a str, u64>,
 }
 
 /// Dynamic Exchange information returned by `get_info` method
@@ -63,11 +62,10 @@ pub type DynamicExchangeInitArgs<'a> = DynamicExchangeConfig<'a>;
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use serde::Serializer;
     use std::collections::BTreeMap;
     use trinci_sdk::{rmp_deserialize, rmp_serialize};
 
-    pub const DYNAMIC_EXCHANGE_ID: &str = "QmT48ijWd7RqEzdV3gKjqXN1kGBgYxFWsxajjguLkyTjy7";
+    pub const DYNAMIC_EXCHANGE_ID: &str = "QmExchange_qEzdV3gKjqXN1kGBgYxFWsxajjguLkyTjy7";
     pub const ASSET_ID: &str = "QmAsset_pccaEETHWMqXPHcrVRUqaD9JxRHLdSVsCFgxj5";
     pub const PENALTY_ASSET_ID: &str = "QmPenalty_Asset_WMqXPHcrVRUqaD9JxRHLdSVsCFgxj5";
     pub const GUARANTOR_ID: &str = "QmGuarantor_X6S316M4yVmxdxPB6XN63ob2LjFYkP6MLq";
@@ -79,17 +77,6 @@ pub(crate) mod tests {
     const DYNAMIC_EXCHANGE_CONFIG_HEX: &str = "97d92e516d53656c6c65725f663568374b59626a4650754853526b325350676458724a5746683557363936485066713769d92e516d41737365745f7063636145455448574d715850486372565255716144394a7852484c64535673434667786a35d92e516d47756172616e746f725f5836533331364d3479566d786478504236584e36336f62324c6a46596b50364d4c713264d92e516d41737365745f7063636145455448574d715850486372565255716144394a7852484c64535673434667786a3582d92e516d41737365745f315f3743693148736a35456235446e62523168445a5246705272515665515a486b6962754570ccfad92e516d41737365745f325f526a425378505948475647745a6d6d6b4e33665674484a5475546277775553646e423861cd0136";
     const DYNAMIC_EXCHANGE_APPLY_ARGS_HEX: &str = "92d92e516d41737365745f7063636145455448574d715850486372565255716144394a7852484c64535673434667786a352a";
     const DYNAMIC_EXCHANGE_INFO_HEX: &str = "9397d92e516d53656c6c65725f663568374b59626a4650754853526b325350676458724a5746683557363936485066713769d92e516d41737365745f7063636145455448574d715850486372565255716144394a7852484c64535673434667786a35d92e516d47756172616e746f725f5836533331364d3479566d786478504236584e36336f62324c6a46596b50364d4c713264d92e516d41737365745f7063636145455448574d715850486372565255716144394a7852484c64535673434667786a3582d92e516d41737365745f315f3743693148736a35456235446e62523168445a5246705272515665515a486b6962754570ccfad92e516d41737365745f325f526a425378505948475647745a6d6d6b4e33665674484a5475546277775553646e423861cd013664a46f70656e";
-
-    pub(crate) fn ser_ordered_map<S>(
-        value: &HashMap<&str, u64>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let ordered: BTreeMap<_, _> = value.iter().collect();
-        ordered.serialize(serializer)
-    }
 
     pub fn create_dynamic_exchange_info() -> DynamicExchangeInfo<'static> {
         let config = create_dynamic_exchange_config(ASSET_ID);
@@ -103,7 +90,7 @@ pub(crate) mod tests {
     pub fn create_dynamic_exchange_config(
         penalty_asset: &'static str,
     ) -> DynamicExchangeConfig<'static> {
-        let map = HashMap::new();
+        let map = BTreeMap::new();
         let mut data = DynamicExchangeConfig {
             asset: ASSET_ID,
             seller: SELLER_ID,
