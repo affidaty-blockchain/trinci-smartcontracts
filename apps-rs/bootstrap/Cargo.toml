@@ -1,6 +1,6 @@
 [package]
 name = "bootstrap"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["The Affidaty Team <trinci@affidaty.io>"]
 edition = "2018"
 description = "Node bootstrap"

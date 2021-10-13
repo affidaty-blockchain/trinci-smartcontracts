@@ -32,7 +32,7 @@
 //!
 
 use sha256::digest_bytes;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use trinci_sdk::{rmp_serialize_named, AppContext, PackedValue, WasmError, WasmResult};
 
 mod types;
@@ -66,7 +66,7 @@ fn calculate_contract_sha256_multihash(contract_data: &[u8]) -> String {
 fn contract_registration(ctx: AppContext, args: ContractRegistrationArgs) -> WasmResult<String> {
     // Load the assets list from the service account data
     let buf = trinci_sdk::load_data(CONTRACTS_KEY);
-    let mut contract_list: HashMap<String, ContractRegistrationData> =
+    let mut contract_list: BTreeMap<String, ContractRegistrationData> =
         trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     let contract_data = ContractRegistrationData {
@@ -103,7 +103,7 @@ fn contract_registration(ctx: AppContext, args: ContractRegistrationArgs) -> Was
 fn asset_registration(ctx: AppContext, args: AssetRegistrationArgs) -> WasmResult<()> {
     // Load the assets list from the service account data
     let buf = trinci_sdk::load_data(ASSETS_KEY);
-    let mut asset_list: HashMap<String, AssetRegistrationData> =
+    let mut asset_list: BTreeMap<String, AssetRegistrationData> =
         trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     let asset_data = AssetRegistrationData {
@@ -130,7 +130,7 @@ fn asset_registration(ctx: AppContext, args: AssetRegistrationArgs) -> WasmResul
 fn oracle_registration(ctx: AppContext, args: OracleRegistrationArgs) -> WasmResult<()> {
     // Load the oracles list from the service account data
     let buf = trinci_sdk::load_data(ORACLES_KEY);
-    let mut oracle_list: HashMap<String, OracleRegistrationData> =
+    let mut oracle_list: BTreeMap<String, OracleRegistrationData> =
         trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     let oracle_data = OracleRegistrationData {
@@ -161,7 +161,7 @@ fn oracle_registration(ctx: AppContext, args: OracleRegistrationArgs) -> WasmRes
 fn alias_registration(ctx: AppContext, args: AliasRegistrationArgs) -> WasmResult<()> {
     // Load the alias list from the service account data
     let buf = trinci_sdk::load_data(ALIASES_KEY);
-    let mut alias_list: HashMap<String, String> =
+    let mut alias_list: BTreeMap<String, String> =
         trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     // Add the new alias and check if the alias already exists
@@ -182,7 +182,7 @@ fn alias_registration(ctx: AppContext, args: AliasRegistrationArgs) -> WasmResul
 fn alias_deletion(ctx: AppContext, args: AliasDeletionArgs) -> WasmResult<()> {
     // Load the alias list from the service account data
     let buf = trinci_sdk::load_data(ALIASES_KEY);
-    let mut alias_list: HashMap<String, String> =
+    let mut alias_list: BTreeMap<String, String> =
         trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     // Delete the alias if the alias exists
@@ -205,7 +205,8 @@ fn alias_deletion(ctx: AppContext, args: AliasDeletionArgs) -> WasmResult<()> {
 fn alias_lookup(_ctx: AppContext, args: AliasLookupArgs) -> WasmResult<String> {
     // Load the alias list from the service account data
     let buf = trinci_sdk::load_data(ALIASES_KEY);
-    let alias_list: HashMap<String, String> = trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
+    let alias_list: BTreeMap<String, String> =
+        trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     if let Some(account_id) = alias_list.get(args.alias) {
         Ok(account_id.to_owned())
@@ -218,7 +219,7 @@ fn alias_lookup(_ctx: AppContext, args: AliasLookupArgs) -> WasmResult<String> {
 fn get_asset_information(_ctx: AppContext, args: GetAssetArgs) -> WasmResult<PackedValue> {
     // Load the assets list from the service account data
     let buf = trinci_sdk::load_data(ASSETS_KEY);
-    let asset_list: HashMap<String, AssetRegistrationData> =
+    let asset_list: BTreeMap<String, AssetRegistrationData> =
         trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     let asset = match asset_list.get(args.asset_id) {
@@ -235,7 +236,7 @@ fn get_asset_information(_ctx: AppContext, args: GetAssetArgs) -> WasmResult<Pac
 fn get_oracle_information(_ctx: AppContext, args: GetOracleArgs) -> WasmResult<PackedValue> {
     // Load the oracles list from the service account data
     let buf = trinci_sdk::load_data(ORACLES_KEY);
-    let oracle_list: HashMap<String, OracleRegistrationData> =
+    let oracle_list: BTreeMap<String, OracleRegistrationData> =
         trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     let oracle = match oracle_list.get(args.oracle_id) {
@@ -252,7 +253,7 @@ fn get_oracle_information(_ctx: AppContext, args: GetOracleArgs) -> WasmResult<P
 fn get_contract_information(_ctx: AppContext, args: GetContractArgs) -> WasmResult<PackedValue> {
     // Load the assets list from the service account data
     let buf = trinci_sdk::load_data(CONTRACTS_KEY);
-    let contract_list: HashMap<String, ContractRegistrationData> =
+    let contract_list: BTreeMap<String, ContractRegistrationData> =
         trinci_sdk::rmp_deserialize(&buf).unwrap_or_default();
 
     let contract = match contract_list.get(args.contract) {
@@ -286,6 +287,21 @@ mod tests {
     const CONTRACT_INFORMATION_HEX: &str = "85a46e616d65aa6d79636f6e7472616374a776657273696f6ea5302e312e30a763726561746f72d92e516d43616c6c657250467a6e78455836533331364d3479566d786478504236584e36336f626a46596b50364d4c71ab6465736372697074696f6ebc54686973206973206d7920706572736f6e616c20636f6e7472616374a375726cb9687474703a2f2f7777772e6d79636f6e74726163742e6f7267";
     const ORACLE_INFORMATION_HEX: &str = "85a46e616d65ab54696d65204f7261636c65a763726561746f72d92e516d43616c6c657250467a6e78455836533331364d3479566d786478504236584e36336f626a46596b50364d4c71ab6465736372697074696f6ed928546869732077696c6c20736179207468652074696d6520696e2074686520626c6f636b636861696ea375726cb5687474703a2f2f54696d654f7261636c652e6f7267a8636f6e7472616374c403010203";
 
+    fn set_alias_data() {
+        let mut map: BTreeMap<String, String> = BTreeMap::default();
+        map.insert("MyCoolAlias".to_string(), CALLER_ID.to_string());
+        let buf = rmp_serialize(&map).unwrap();
+
+        not_wasm::set_account_data(SERVICE_ID, ALIASES_KEY, &buf);
+    }
+    fn set_oracle_data() {
+        let mut map: BTreeMap<String, OracleRegistrationData> = BTreeMap::default();
+        map.insert(ORACLE_ID.to_string(), create_oracle_registration_data());
+        let buf = rmp_serialize(&map).unwrap();
+
+        not_wasm::set_account_data(SERVICE_ID, ORACLES_KEY, &buf);
+    }
+
     #[test]
     fn contract_registration_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
@@ -297,7 +313,7 @@ mod tests {
         not_wasm::call_wrap(contract_registration, ctx, args).unwrap();
 
         let buf = trinci_sdk::load_data(CONTRACTS_KEY);
-        let contracts: HashMap<String, ContractRegistrationData> = rmp_deserialize(&buf).unwrap();
+        let contracts: BTreeMap<String, ContractRegistrationData> = rmp_deserialize(&buf).unwrap();
         let contract_hash = hex::encode(CONTRACT_MULTIHASH);
         let contract = contracts.get(contract_hash.as_str()).unwrap().to_owned();
 
@@ -312,7 +328,7 @@ mod tests {
     fn duplicate_contract_registration_test() {
         let ctx = create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, ContractRegistrationData> = HashMap::default();
+        let mut map: BTreeMap<String, ContractRegistrationData> = BTreeMap::default();
         map.insert(
             hex::encode(CONTRACT_MULTIHASH),
             create_contract_registration_data(),
@@ -337,7 +353,7 @@ mod tests {
     fn get_contract_information_test() {
         let ctx = create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, ContractRegistrationData> = HashMap::default();
+        let mut map: BTreeMap<String, ContractRegistrationData> = BTreeMap::default();
         map.insert(
             hex::encode(CONTRACT_MULTIHASH),
             create_contract_registration_data(),
@@ -370,7 +386,7 @@ mod tests {
         not_wasm::call_wrap(asset_registration, ctx, args).unwrap();
 
         let buf = trinci_sdk::load_data(ASSETS_KEY);
-        let assets: HashMap<String, AssetRegistrationData> = rmp_deserialize(&buf).unwrap();
+        let assets: BTreeMap<String, AssetRegistrationData> = rmp_deserialize(&buf).unwrap();
         let asset = assets.get(ASSET_ID).unwrap().to_owned();
 
         assert_eq!(asset, expected);
@@ -380,7 +396,7 @@ mod tests {
     fn duplicate_asset_registration_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, AssetRegistrationData> = HashMap::default();
+        let mut map: BTreeMap<String, AssetRegistrationData> = BTreeMap::default();
         map.insert(ASSET_ID.to_string(), create_asset_registration_data());
         let buf = rmp_serialize(&map).unwrap();
 
@@ -397,7 +413,7 @@ mod tests {
     fn get_asset_information_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, AssetRegistrationData> = HashMap::default();
+        let mut map: BTreeMap<String, AssetRegistrationData> = BTreeMap::default();
         map.insert(ASSET_ID.to_string(), create_asset_registration_data());
         let buf = rmp_serialize(&map).unwrap();
 
@@ -419,7 +435,7 @@ mod tests {
         not_wasm::call_wrap(alias_registration, ctx, args).unwrap();
 
         let buf = trinci_sdk::load_data(ALIASES_KEY);
-        let aliases: HashMap<String, String> = rmp_deserialize(&buf).unwrap();
+        let aliases: BTreeMap<String, String> = rmp_deserialize(&buf).unwrap();
         let account_id = aliases.get("MyCoolCoin").unwrap().to_owned();
 
         assert_eq!(account_id, CALLER_ID.to_string());
@@ -429,7 +445,7 @@ mod tests {
     fn duplicate_alias_registration_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, String> = HashMap::default();
+        let mut map: BTreeMap<String, String> = BTreeMap::default();
         map.insert("MyCoolCoin".to_string(), CALLER_ID.to_string());
         let buf = rmp_serialize(&map).unwrap();
 
@@ -446,18 +462,14 @@ mod tests {
     fn deleting_alias_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, String> = HashMap::default();
-        map.insert("MyCoolAlias".to_string(), CALLER_ID.to_string());
-        let buf = rmp_serialize(&map).unwrap();
-
-        not_wasm::set_account_data(SERVICE_ID, ALIASES_KEY, &buf);
+        set_alias_data();
 
         let args = create_alias_deletion_args("MyCoolAlias");
 
         let _ = not_wasm::call_wrap(alias_deletion, ctx, args).unwrap();
 
         let buf = trinci_sdk::load_data(ALIASES_KEY);
-        let aliases: HashMap<String, String> = rmp_deserialize(&buf).unwrap();
+        let aliases: BTreeMap<String, String> = rmp_deserialize(&buf).unwrap();
         let account_id = aliases.get("MyCoolAlias");
 
         assert!(account_id.is_none())
@@ -467,11 +479,7 @@ mod tests {
     fn deleting_inexistent_alias_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, String> = HashMap::default();
-        map.insert("MyCoolAlias".to_string(), CALLER_ID.to_string());
-        let buf = rmp_serialize(&map).unwrap();
-
-        not_wasm::set_account_data(SERVICE_ID, ALIASES_KEY, &buf);
+        set_alias_data();
 
         let args = create_alias_deletion_args("MyCoolestAlias");
 
@@ -480,7 +488,7 @@ mod tests {
         assert_eq!(err.to_string(), "alias not registered");
 
         let buf = trinci_sdk::load_data(ALIASES_KEY);
-        let aliases: HashMap<String, String> = rmp_deserialize(&buf).unwrap();
+        let aliases: BTreeMap<String, String> = rmp_deserialize(&buf).unwrap();
         let account_id = aliases.get("MyCoolAlias").unwrap();
 
         assert_eq!(account_id, CALLER_ID);
@@ -491,11 +499,7 @@ mod tests {
         let mut ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
         ctx.caller = USER_ID;
 
-        let mut map: HashMap<String, String> = HashMap::default();
-        map.insert("MyCoolAlias".to_string(), CALLER_ID.to_string());
-        let buf = rmp_serialize(&map).unwrap();
-
-        not_wasm::set_account_data(SERVICE_ID, ALIASES_KEY, &buf);
+        set_alias_data();
 
         let args = create_alias_deletion_args("MyCoolAlias");
 
@@ -504,7 +508,7 @@ mod tests {
         assert_eq!(err.to_string(), "not authorized");
 
         let buf = trinci_sdk::load_data(ALIASES_KEY);
-        let aliases: HashMap<String, String> = rmp_deserialize(&buf).unwrap();
+        let aliases: BTreeMap<String, String> = rmp_deserialize(&buf).unwrap();
         let account_id = aliases.get("MyCoolAlias").unwrap();
 
         assert_eq!(account_id, CALLER_ID);
@@ -514,7 +518,7 @@ mod tests {
     fn alias_lookup_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, String> = HashMap::default();
+        let mut map: BTreeMap<String, String> = BTreeMap::default();
         map.insert("MyCoolAsset".to_string(), ASSET_ID.to_string());
         let buf = rmp_serialize(&map).unwrap();
 
@@ -538,7 +542,7 @@ mod tests {
         not_wasm::call_wrap(oracle_registration, ctx, args).unwrap();
 
         let buf = trinci_sdk::load_data(ORACLES_KEY);
-        let oracles: HashMap<String, OracleRegistrationData> = rmp_deserialize(&buf).unwrap();
+        let oracles: BTreeMap<String, OracleRegistrationData> = rmp_deserialize(&buf).unwrap();
         let oracle = oracles.get(ORACLE_ID);
         let oracle = oracle.unwrap().to_owned();
 
@@ -549,11 +553,7 @@ mod tests {
     fn duplicate_oracle_registration_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, OracleRegistrationData> = HashMap::default();
-        map.insert(ORACLE_ID.to_string(), create_oracle_registration_data());
-        let buf = rmp_serialize(&map).unwrap();
-
-        not_wasm::set_account_data(SERVICE_ID, ORACLES_KEY, &buf);
+        set_oracle_data();
 
         let args = create_oracle_registration_args();
 
@@ -566,11 +566,7 @@ mod tests {
     fn get_oracle_information_test() {
         let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, OracleRegistrationData> = HashMap::default();
-        map.insert(ORACLE_ID.to_string(), create_oracle_registration_data());
-        let buf = rmp_serialize(&map).unwrap();
-
-        not_wasm::set_account_data(SERVICE_ID, ORACLES_KEY, &buf);
+        set_oracle_data();
 
         let args = create_get_oracle_information_args(ORACLE_ID);
 

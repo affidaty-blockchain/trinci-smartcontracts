@@ -30,7 +30,7 @@
 //!
 
 use sha256::digest_bytes;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use trinci_sdk::{AppContext, WasmError, WasmResult};
 
 mod types;
@@ -55,7 +55,7 @@ fn contract_registration(ctx: AppContext, args: ContractRegistrationArgs) -> Was
         return Err(WasmError::new("blockchain already initialized"));
     }
 
-    let mut contract_list = HashMap::new();
+    let mut contract_list = BTreeMap::new();
 
     let contract_data = ContractRegistrationData {
         name: args.name,
@@ -103,7 +103,7 @@ mod tests {
         not_wasm::call_wrap(contract_registration, ctx, args).unwrap();
 
         let buf = trinci_sdk::load_data(CONTRACTS_KEY);
-        let contracts: HashMap<String, ContractRegistrationData> = rmp_deserialize(&buf).unwrap();
+        let contracts: BTreeMap<String, ContractRegistrationData> = rmp_deserialize(&buf).unwrap();
         let contract_hash = hex::encode(CONTRACT_MULTIHASH);
         let contract = contracts.get(contract_hash.as_str()).unwrap().to_owned();
 
@@ -118,7 +118,7 @@ mod tests {
     fn bootstrap_duplicate_contract_registration_test() {
         let ctx = create_app_context(SERVICE_ID, CALLER_ID);
 
-        let mut map: HashMap<String, ContractRegistrationData> = HashMap::default();
+        let mut map: BTreeMap<String, ContractRegistrationData> = BTreeMap::default();
         map.insert(
             hex::encode(CONTRACT_MULTIHASH),
             create_contract_registration_data(),

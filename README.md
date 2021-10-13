@@ -5,8 +5,9 @@ This folder contains the material to allow third party
 development of smart contract applications using Rust.
 
 
-## `apps` directory 
- - The `apps` directory contains the contracts source code
+
+## `apps-rs` directory 
+ - The `apps-rs` directory contains the **Rust** contracts source code
 
 ### Create a new contract
 ```bash
