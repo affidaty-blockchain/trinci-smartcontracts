@@ -1,6 +1,6 @@
 [package]
 name = "asset"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["The Affidaty Team <trinci@affidaty.io>"]
 edition = "2018"
 description = "Basic TAI asset"

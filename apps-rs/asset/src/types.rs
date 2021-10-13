@@ -16,7 +16,7 @@
 // along with TRINCI. If not, see <https://www.gnu.org/licenses/>.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 pub use trinci_sdk::tai::{
     Asset, AssetLockArgs as LockArgs, AssetTransferArgs as TransferArgs, LockPrivilege, LockType,
 };
@@ -104,7 +104,7 @@ pub struct DelegateTransferArgs<'a> {
 }
 
 /// Delegations data field
-pub type DelegationsData<'a> = HashMap<&'a str, Vec<DelegateTransferArgs<'a>>>;
+pub type DelegationsData<'a> = BTreeMap<&'a str, Vec<DelegateTransferArgs<'a>>>;
 
 #[cfg(test)]
 pub(crate) mod tests {
