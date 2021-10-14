@@ -18,7 +18,7 @@
 use integration::{
     common::{
         self, AccountInfo, SerdeValue, ASSET_APP_HASH, PUB_KEY1, PUB_KEY2, PUB_KEY3, PVT_KEY1,
-        PVT_KEY2, PVT_KEY3, SERVICE_APP_HASH,
+        PVT_KEY2, PVT_KEY3,
     },
     TestApp,
 };
@@ -33,6 +33,10 @@ use trinci_core::{
 };
 
 use trinci_sdk::{rmp_deserialize, rmp_serialize, value};
+
+lazy_static! {
+    pub static ref SERVICE_APP_HASH: Hash = common::app_hash("service.wasm").unwrap();
+}
 
 const SERVICE_ALIAS: &str = "Service";
 const SUBMITTER_ALIAS: &str = "Submitter";
