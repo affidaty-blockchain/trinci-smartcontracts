@@ -40,15 +40,6 @@ const CUSTOMER_ALIAS: &str = "Customer";
 const CURRENCY_ASSET_ALIAS: &str = "Currency_Asset";
 const WITHDRAWN_ASSET_ALIAS: &str = "Withdrawn_Asset";
 
-// TODO: insert this in the trinci-integration library.
-// TODO: maybe could be an idea to insert the asset transactions functions in
-// the trinci-integration library as well.
-pub const PUB_KEY7: &str = "044d469f3a0d6b50ab570ae4724446a5730fd7311d399dcf3cb3542eb6773b0e571f63197255ae29c4f154c89962ca1e36b78a90295fa6a242973743a14685fe60b644c7923530edf0967f4f639a35fb5ed081e660b2606e5f1f394eaa75f2630c";
-pub const PVT_KEY7: &str = "fa646fa1f6d3b876b0f57700d0134d11fd1913073092e23f3df753289db64a73cc7b8920a39136e697a01e677f4834b5";
-
-pub const PUB_KEY8: &str = "044717583406373a9b47f564e6af4c28d9bc45b11da5de0fdfcd9928dab12eaacaedfabc7357565f2ecfa222f4b4e654a727397c3cad00a2af4c21defe5a0b403d3e62390b71633b203c268fd35ffe2e83fc7c602c2ae19274707a96f579e5439e";
-pub const PVT_KEY8: &str = "f9a2619f076ca99870bb90b4faf63a9ddedc031b07a1f2ea82305b71dc43d040b64ff56af043c887a24f5c4148b15dad";
-
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
@@ -191,11 +182,11 @@ fn create_txs(update_status: &str) -> Vec<Transaction> {
 
     vec![
         // 0. Initialize currency asset
-        asset_init_tx(currency_asset_info, CURRENCY_ASSET_ALIAS, withdraw_info), // For now withdraw account must be authorized to burn
+        asset_init_tx(currency_asset_info, CURRENCY_ASSET_ALIAS, exchange_info),
         // 1. Mint some units in exchange account.
         asset_mint_tx(currency_asset_info, exchange_info, 7_500),
         // 2. Initialize withdrawn asset
-        asset_init_tx(withdrawn_asset_info, WITHDRAWN_ASSET_ALIAS, withdraw_info), // For now withdraw account must be authorized to burn
+        asset_init_tx(withdrawn_asset_info, WITHDRAWN_ASSET_ALIAS, exchange_info),
         // 3. Mint some units in customer account.
         asset_mint_tx(withdrawn_asset_info, customer_info, 5_000),
         // 4. Transfer funds from exchange to withdraw account.
