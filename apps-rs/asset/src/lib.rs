@@ -166,7 +166,11 @@ fn mint(ctx: AppContext, args: MintArgs) -> WasmResult<()> {
     let buf = trinci_sdk::load_data(CONFIG_KEY);
     let mut config: AssetConfig = trinci_sdk::rmp_deserialize(&buf)?;
 
-    if ctx.caller != config.creator && !config.authorized.contains(&ctx.caller) {
+    if (ctx.depth == 0 && ctx.caller != config.creator && !config.authorized.contains(&ctx.caller))
+        || (ctx.depth > 0
+            && ctx.origin != config.creator
+            && !config.authorized.contains(&ctx.origin))
+    {
         return Err(WasmError::new("not authorized"));
     }
 
@@ -188,7 +192,11 @@ fn burn(ctx: AppContext, args: BurnArgs) -> WasmResult<()> {
     let buf = trinci_sdk::load_data(CONFIG_KEY);
     let mut config: AssetConfig = trinci_sdk::rmp_deserialize(&buf)?;
 
-    if ctx.caller != config.creator && !config.authorized.contains(&ctx.caller) {
+    if (ctx.depth == 0 && ctx.caller != config.creator && !config.authorized.contains(&ctx.caller))
+        || (ctx.depth > 0
+            && ctx.origin != config.creator
+            && !config.authorized.contains(&ctx.origin))
+    {
         return Err(WasmError::new("not authorized"));
     }
 
@@ -317,6 +325,7 @@ mod tests {
     const ASSET_ID: &str = "QmYHnEQLdf5h7KYbjFPuHSRk2SPgdXrJWFh5W696HPfq7i";
     const AUTH_ACCOUNT_1: &str = "QmxACC1Ldf5h7KYbjFPuHSRk2SPgdXrJWFh5W696HPf123";
     const AUTH_ACCOUNT_2: &str = "QmxACC2Ldf5h7KYbjFPuHSRk2SPgdXrJWFh5W696HPfxyz";
+    const CONTRACT_ID: &str = "QmContract_h7KYbjFPuHSRk2SPgdXrJWFh5W696HPfxyz";
 
     const EMPTIED_DELEGATION_DATA_HEX: &str = "81d92e516d44656c656761746551483939796471723743693148736a35456235446e62523168445a52467052725156655190";
 
@@ -777,6 +786,42 @@ mod tests {
     }
 
     #[test]
+    fn authorized_mint_from_contract_test() {
+        let mut ctx = prepare_full_env();
+        ctx.caller = CONTRACT_ID;
+        ctx.origin = AUTH_ACCOUNT_1;
+        ctx.depth = 1;
+
+        let args = MintArgs {
+            to: DESTINATION_ID,
+            units: 30,
+        };
+
+        not_wasm::call_wrap(mint, ctx, args).unwrap();
+
+        let buf = not_wasm::get_account_data(ASSET_ID, CONFIG_KEY);
+        let config: AssetConfig = trinci_sdk::rmp_deserialize(&buf).unwrap();
+        assert_eq!(config.minted, 130);
+        let asset: Asset = not_wasm::get_account_asset_gen(DESTINATION_ID, ASSET_ID);
+        assert_eq!(asset.units, 30);
+    }
+    #[test]
+    fn not_authorized_mint_from_contract_test() {
+        let mut ctx = prepare_full_env();
+        ctx.caller = CONTRACT_ID;
+        ctx.origin = CALLER_ID;
+        ctx.depth = 1;
+
+        let args = MintArgs {
+            to: DESTINATION_ID,
+            units: 30,
+        };
+
+        let err = not_wasm::call_wrap(mint, ctx, args).unwrap_err();
+        assert_eq!("not authorized", err.to_string());
+    }
+
+    #[test]
     fn mint_from_authorized_account_test() {
         let mut ctx = prepare_full_env();
         ctx.caller = AUTH_ACCOUNT_2;
@@ -881,6 +926,48 @@ mod tests {
         let err = not_wasm::call_wrap(burn, ctx, args).unwrap_err();
 
         assert_eq!(err.to_string(), "not authorized");
+    }
+
+    #[test]
+    fn authorized_burn_from_smart_contract() {
+        let mut ctx = prepare_full_env();
+        ctx.caller = CONTRACT_ID;
+        ctx.depth = 1;
+        ctx.origin = AUTH_ACCOUNT_1;
+
+        not_wasm::set_account_asset_gen(DESTINATION_ID, ASSET_ID, Asset::new(100));
+
+        let args = BurnArgs {
+            from: DESTINATION_ID,
+            units: 30,
+        };
+
+        not_wasm::call_wrap(burn, ctx, args).unwrap();
+
+        let buf = not_wasm::get_account_data(ASSET_ID, CONFIG_KEY);
+        let config: AssetConfig = trinci_sdk::rmp_deserialize(&buf).unwrap();
+        assert_eq!(config.burned, 40);
+        let asset: Asset = not_wasm::get_account_asset_gen(DESTINATION_ID, ASSET_ID);
+        assert_eq!(asset.units, 70);
+    }
+
+    #[test]
+    fn not_authorized_burn_from_smart_contract() {
+        let mut ctx = prepare_full_env();
+        ctx.caller = CONTRACT_ID;
+        ctx.depth = 1;
+        ctx.origin = CALLER_ID;
+
+        not_wasm::set_account_asset_gen(DESTINATION_ID, ASSET_ID, Asset::new(100));
+
+        let args = BurnArgs {
+            from: DESTINATION_ID,
+            units: 30,
+        };
+
+        let err = not_wasm::call_wrap(burn, ctx, args).unwrap_err();
+
+        assert_eq!("not authorized", err.to_string());
     }
 
     #[test]
