@@ -1,13 +1,13 @@
 #!/bin/env node
 
 const fs = require('fs');
-const t2lib = require('@affidaty/t2-lib');
+const t2lib = require('@developer2/t2-lib');
 const fileFromPath = require('./include/hashlist').fileFromPath;
 const HashList = require('./include/hashlist').HashList;
 const hashList = new HashList();
 
 // CONFIGS START
-const nodeUrl = 'http://localhost:8000/';
+const nodeUrl = 'http://127.0.0.1:8000';
 const network = 'nightly';
 
 const fileList = [
