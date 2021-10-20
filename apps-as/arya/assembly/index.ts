@@ -1,6 +1,7 @@
 import { encode as b58encode } from 'as-base58';
 import { Sha256 } from '../node_modules/as-hmac-sha2/assembly';
 import { Types, Utils, MemUtils, HostFunctions, MsgPack } from '../node_modules/@affidaty/trinci-sdk-as';
+import { arrayBufferToHexString } from './utils';
 import {
     RemoveProfileDataArgs,
     SetCertArgs,
@@ -14,6 +15,8 @@ import {
     certsListDecode,
     certsListEncode,
     certDataEncodeForVerify,
+    decodeVerifyDataArgs,
+    callReturnDecode,
 } from './msgpack';
 
 export function my_alloc(size: i32): i32 {
@@ -30,6 +33,7 @@ export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i
     methodsMap.set('remove_profile_data', removeProfileData);
     methodsMap.set('set_certificate', setCertificate);
     methodsMap.set('remove_certificate', removeCertificate);
+    methodsMap.set('verify_data', verifyData);
 
     if (!methodsMap.has(ctx.method)) {
         let success = false;
@@ -215,3 +219,168 @@ function removeCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombined
     return MsgPack.appOutputEncode(success, resultBytes);
 }
 // END - CERTIFICATE MANAGEMENT
+
+// START - CERTIFICATE DATA VERIFICATION
+
+// create a leaf from data
+function makeLeaf(key: string, value: string, salt: ArrayBuffer): ArrayBuffer {
+    let strToHash = `${value}${key}${arrayBufferToHexString(salt)}`;
+    HostFunctions.log(`${key} : [${strToHash}]`);
+    let strBin: Uint8Array = Utils.u8ArrayToUint8Array(Utils.stringtoU8Array(strToHash));
+    const hash: Uint8Array = Sha256.hash(strBin);
+    HostFunctions.log(`${key}: [${arrayBufferToHexString(hash.buffer)}]`);
+    return hash.buffer;
+}
+
+// calculates minimal tree depth needed to host given leaves number
+function calculateSymmetryDepth(givenLeaves: u32): u32 {
+    return Math.ceil(Math.log2(givenLeaves as f32)) as u32;
+}
+
+// calculates number of missing leaves needed to create a SYMMETRICAL tree
+// with minimal depth needed to host given leaves number
+function missingSymmetryLeaves(givenLeaves: u32): u32 {
+    return (2 ** calculateSymmetryDepth(givenLeaves)) - givenLeaves;
+}
+
+// pub struct MerkleTreeVerifyArgs<'a> {
+//     pub root: &'a str,
+//     pub indices: Vec<i32>,
+//     pub leaves: Vec<&'a str>,
+//     pub depth: i32,
+//     pub proofs: Vec<&'a str>,
+// }
+
+
+@msgpackable
+class MerkleTreeVerifyArgs {
+    root: string = '';
+    indices: u32[] = [];
+    leaves: string[] = [];
+    depth: u32 = 0;
+    proofs: string[] = [];
+}
+
+function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
+    HostFunctions.log('===============|verify|===============');
+    const falseResultValue: u8[] = [0xc2];
+    const trueResultValue: u8[] = [0xc3];
+    let args = decodeVerifyDataArgs(argsU8);
+
+    // load the correct certificate
+    let identity = new Identity();
+    let identityBytes = HostFunctions.loadAsset(args.target);
+    if (identityBytes.length > 0) {
+        identity = MsgPack.deserialize<Identity>(identityBytes);
+    }
+    let certsList = new Map<string, ArrayBuffer>();
+    let certsListBytes = identity.certificates;
+    if (certsListBytes.byteLength > 0) {
+        certsList = certsListDecode(certsListBytes);
+    }
+    if (!certsList.has(args.certificate)) {
+        return MsgPack.appOutputEncode(true, falseResultValue);
+    }
+    // get target certificate
+    let certificate = decodeCertificate(certsList.get(args.certificate));
+    // all fields certified by the certificate
+    let certFields = certificate.data.fields.sort();
+    HostFunctions.log(`certificate: [${certFields.toString()}]`);
+    // if any of the passed clear fields isn't present in the
+    // certificate, then it cannot be verified. Therefore return false.
+    for (let i = 0; i < args.data.keys().length; i++) {
+        if (certFields.indexOf(args.data.keys()[i]) < 0) {
+            return MsgPack.appOutputEncode(true, falseResultValue);
+        }
+    }
+    // certificate merkle tree depth
+    let depth: u32 = calculateSymmetryDepth(certFields.length);
+    // indexes of all fields with clear data relative to the certificate fields
+    let clearIndexes: u32[] = [];
+    // tree leaves (SHA256(`${value}${key}${salt.toStrinh('hex')}`) at positions specified in "clearIndexes" array.
+    let clearLeaves: ArrayBuffer[] = [];
+
+    // final compilation of clear data (args + eventual profile data)
+    let clearData: Map<string, string> = new Map<string, string>();
+    // fields that are missing in args
+    let missingFields: string[] = [];
+    // number of fields that should be generated automatically
+    // to make the tree symmetrical (only if no multiproof, otherwise always 0)
+    let autoLeavesNumber: u32 = 0;
+    // find out if there are any missing field in args
+    for (let i = 0; i < certFields.length; i++) {
+        if (args.data.keys().indexOf(certFields[i]) >= 0) {
+            clearData.set(certFields[i], args.data.get(certFields[i]));
+        } else {
+            missingFields.push(certFields[i]);
+        }
+    }
+    HostFunctions.log(`missing: [${missingFields.toString()}]`);
+    HostFunctions.log(`clear1: [${clearData.keys().toString()}]`);
+
+    // check profile data only if there are missing fields and no multiproof
+    if (missingFields.length > 0 && args.multiproof.length < 1) {
+        HostFunctions.log(`missingFields and no multiproof`);
+        // deserialize profile data
+        let profileBytes = Utils.arrayBufferToU8Array(identity.profile);
+        let profile = new Map<string, string>();
+        if (profileBytes.length > 0) {
+            profile = profileDataDecode(profileBytes);
+        };
+
+        for (let i = 0; i < missingFields.length; i++) {
+            if (profile.has(missingFields[i])) {
+                clearData.set(missingFields[i], profile.get(missingFields[i]));
+            } else {
+                HostFunctions.log(`no data for ${missingFields[i]} field`);
+                // incomplete data without multiproof(see if condifiot). Cannot verify.
+                return MsgPack.appOutputEncode(true, falseResultValue);
+            }
+        }
+
+        // at this point we have all data in clear
+        // check if any leaves should be added automatically
+        autoLeavesNumber = missingSymmetryLeaves(certificate.data.fields.length);
+    }
+    HostFunctions.log(`clear2: [${clearData.keys().toString()}]`);
+    HostFunctions.log(`autoleaves: [${autoLeavesNumber.toString()}]`);
+
+    // create leaves from clear data
+    for (let i = 0; i < certFields.length; i++) {
+        if (clearData.has(certFields[i])) {
+            clearIndexes.push(i);
+            clearLeaves.push(makeLeaf(certFields[i], clearData.get(certFields[i]), certificate.data.salt));
+        }
+    }
+
+    // add autogenerated leaves if necessary to make tree symmetrical if necessary
+    for (let i = certFields.length; i < certFields.length + autoLeavesNumber; i++) {
+        clearIndexes.push(i);
+        clearLeaves.push(clearLeaves[certFields.length - 1]);
+    }
+
+    HostFunctions.log(`indexes: [${clearIndexes.toString()}]`);
+    HostFunctions.log(`leaves:`);
+    for (let i = 0; i < clearLeaves.length; i++) {
+        HostFunctions.log(`[${arrayBufferToHexString(clearLeaves[i])}]`);
+    }
+
+    let cryptoCallArgs = new MerkleTreeVerifyArgs();
+    cryptoCallArgs.depth = depth;
+    cryptoCallArgs.root = arrayBufferToHexString(certificate.data.root);
+    cryptoCallArgs.indices = clearIndexes;
+    for (let i = 0; i < clearLeaves.length; i++) {
+        cryptoCallArgs.leaves.push(arrayBufferToHexString(clearLeaves[i]));
+    }
+    for (let i = 0; i < args.multiproof.length; i++) {
+        cryptoCallArgs.proofs.push(arrayBufferToHexString(args.multiproof[i]));
+    }
+
+    let callReturnU8 =  HostFunctions.call('QmbEQJTbcKTYUU3yxpZPVZdcTwjtjYv24dD12vApRUue43', 'merkle_tree_verify', MsgPack.serialize(cryptoCallArgs));
+    let callReturn = callReturnDecode(callReturnU8);
+    // HostFunctions.log(`call result: ${test.toString()}`);
+
+    return MsgPack.appOutputEncode(callReturn.success as boolean, Utils.arrayBufferToU8Array(callReturn.result));
+}
+
+// END - CERTIFICATE DATA VERIFICATION

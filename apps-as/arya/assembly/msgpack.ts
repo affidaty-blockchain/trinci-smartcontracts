@@ -1,6 +1,5 @@
 import { Writer, Encoder, Decoder, Sizer } from '@wapc/as-msgpack';
-import { encode } from 'as-base58';
-import { Utils, HostFunctions } from '../node_modules/@affidaty/trinci-sdk-as';
+import { Utils } from '../node_modules/@affidaty/trinci-sdk-as';
 import { Certificate, CertData } from './types';
 
 export function profileDataDecode(dataU8Arr: u8[]): Map<string, string> {
@@ -66,19 +65,6 @@ export function decodeCertificate(certBytes: ArrayBuffer): Certificate {
     return resultCert;
 }
 
-// function arrayBufferToHexString(ab: ArrayBuffer): string {
-//     let result: string = '';
-//     let dataView = new DataView(ab);
-//     for (let i = 0; i < dataView.byteLength; i++) {
-//         let byteStr = dataView.getUint8(i).toString(16);
-//         if (byteStr.length == 1) {
-//             byteStr = '0' + byteStr;
-//         }
-//         result += byteStr;
-//     }
-//     return result;
-// }
-
 function writeCertData(writer: Writer, certData: CertData): void {
     writer.writeArraySize(4);
     writer.writeArraySize(certData.fields.length);
@@ -130,4 +116,53 @@ export function certsListEncode(certsMap: Map<string, ArrayBuffer>): ArrayBuffer
     let encoder = new Encoder(arrayBuffer);
     writeCertsList(encoder, certsMap);
     return arrayBuffer;
+}
+
+class VerifyDataArgs {
+    target: string = '';
+    certificate: string = '';
+    data: Map<string, string> = new Map<string, string>();
+    multiproof: ArrayBuffer[] = [];
+}
+
+export function decodeVerifyDataArgs(argsU8: u8[]): VerifyDataArgs {
+    let result = new VerifyDataArgs();
+    let decoder = new Decoder(Utils.u8ArrayToArrayBuffer(argsU8));
+    let mapSize = decoder.readMapSize();
+    for (let i: u32 = 0; i < mapSize; i++) {
+        let fieldName = decoder.readString();
+        if (fieldName == 'target') {
+            result.target = decoder.readString();
+        } else if (fieldName == 'certificate') {
+            result.certificate = decoder.readString();
+        } else if (fieldName == 'data') {
+            let dataMapSize = decoder.readMapSize();
+            for (let i: u32 = 0; i < dataMapSize; i++) {
+                result.data.set(decoder.readString(), decoder.readString())
+            }
+        } else if (fieldName == 'multiproof') {
+            let multiProofLength = decoder.readArraySize();
+            for (let i: u32 = 0; i < multiProofLength; i++) {
+                result.multiproof.push(decoder.readByteArray());
+            }
+        } else {
+            throw new Error(`Unknown field: ${fieldName}`);
+        }
+    }
+    return result;
+}
+
+export class CallReturn {
+    success: bool = false;
+    result: ArrayBuffer = new ArrayBuffer(0);
+}
+
+export function callReturnDecode(u8Arr: u8[]): CallReturn {
+    let ab = Utils.u8ArrayToArrayBuffer(u8Arr);
+    let decoder = new Decoder(ab);
+    let ret = new CallReturn();
+    let arrSize = decoder.readArraySize();
+    ret.success = decoder.readBool();
+    ret.result = decoder.readByteArray();
+    return ret;
 }
