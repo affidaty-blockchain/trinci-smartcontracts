@@ -241,10 +241,8 @@ function removeCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombined
 // create a leaf from data
 function makeLeaf(key: string, value: string, salt: ArrayBuffer): ArrayBuffer {
     let strToHash = `${value}${key}${arrayBufferToHexString(salt)}`;
-    // HostFunctions.log(`${key} : [${strToHash}]`);
     let strBin: Uint8Array = Utils.u8ArrayToUint8Array(Utils.stringtoU8Array(strToHash));
     const hash: Uint8Array = Sha256.hash(strBin);
-    // HostFunctions.log(`${key}: [${arrayBufferToHexString(hash.buffer)}]`);
     return hash.buffer;
 }
 
@@ -269,7 +267,6 @@ class MerkleTreeVerifyArgs {
 }
 
 function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
-    HostFunctions.log('===============|verify|===============');
     let cryptoAccountId = Utils.u8ArrayToString(HostFunctions.loadData('cryptoAccountId'));
     if (cryptoAccountId.length < 1) {
         return MsgPack.appOutputEncode(false, Utils.stringtoU8Array(retCodes.noInit.msg));
@@ -332,7 +329,6 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
 
     // check profile data only if there are missing fields and no multiproof
     if (missingFields.length > 0 && args.multiproof.length < 1) {
-        // HostFunctions.log(`missingFields and no multiproof`);
         // deserialize profile data
         let profileBytes = Utils.arrayBufferToU8Array(identity.profile);
         let profile = new Map<string, string>();
@@ -380,7 +376,13 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
         cryptoCallArgs.proofs.push(arrayBufferToHexString(args.multiproof[i]));
     }
 
-    let callReturn =  HostFunctions.call('Qmar6CdF94dFoLZjS4nYbv6kXfdPEiFV1uuqtLyHgZjDJg', 'merkle_tree_verify', MsgPack.serialize(cryptoCallArgs));
+    let callReturn =  HostFunctions.call(
+        Utils.u8ArrayToString(
+            HostFunctions.loadData('cryptoAccountId')
+        ),
+        'merkle_tree_verify',
+        MsgPack.serialize(cryptoCallArgs)
+    );
     let returnData: u8[] = [];
     if (callReturn.success) {
         returnData = [0xc0];
