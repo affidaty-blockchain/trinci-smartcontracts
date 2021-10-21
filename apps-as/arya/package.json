@@ -10,12 +10,12 @@
     "author": "",
     "license": "",
     "dependencies": {
-        "@affidaty/trinci-sdk-as": "^1.0.0",
+        "@affidaty/trinci-sdk-as": "^2.0.0",
         "as-base58": "^0.1.1",
         "as-hmac-sha2": "^1.0.1"
     },
     "devDependencies": {
-        "@affidaty/t2-lib": "^1.4.6",
+        "@affidaty/t2-lib": "^1.4.7",
         "@assemblyscript/loader": "^0.19.11",
         "assemblyscript": "^0.19.11"
     }

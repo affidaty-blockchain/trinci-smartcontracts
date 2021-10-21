@@ -45,3 +45,20 @@ export class Certificate {
     signature: ArrayBuffer = new ArrayBuffer(0);
     multiProof: ArrayBuffer[] = [];
 }
+
+// verify method arguments structure
+export class VerifyDataArgs {
+    target: string = '';
+    certificate: string = '';
+    data: Map<string, string> = new Map<string, string>();
+    multiproof: ArrayBuffer[] = [];
+}
+
+export class RetCode {
+    num: u8;
+    msg: string;
+    constructor(num: u8, msg: string) {
+        this.num = num;
+        this.msg = msg;
+    }
+}

@@ -1,6 +1,6 @@
 import { Writer, Encoder, Decoder, Sizer } from '@wapc/as-msgpack';
 import { Utils } from '../node_modules/@affidaty/trinci-sdk-as';
-import { Certificate, CertData } from './types';
+import { Certificate, CertData, VerifyDataArgs, RetCode } from './types';
 
 export function profileDataDecode(dataU8Arr: u8[]): Map<string, string> {
     let dataArrayBuffer = Utils.u8ArrayToArrayBuffer(dataU8Arr);
@@ -118,13 +118,6 @@ export function certsListEncode(certsMap: Map<string, ArrayBuffer>): ArrayBuffer
     return arrayBuffer;
 }
 
-class VerifyDataArgs {
-    target: string = '';
-    certificate: string = '';
-    data: Map<string, string> = new Map<string, string>();
-    multiproof: ArrayBuffer[] = [];
-}
-
 export function decodeVerifyDataArgs(argsU8: u8[]): VerifyDataArgs {
     let result = new VerifyDataArgs();
     let decoder = new Decoder(Utils.u8ArrayToArrayBuffer(argsU8));
@@ -152,17 +145,17 @@ export function decodeVerifyDataArgs(argsU8: u8[]): VerifyDataArgs {
     return result;
 }
 
-export class CallReturn {
-    success: bool = false;
-    result: ArrayBuffer = new ArrayBuffer(0);
+function writeVerifyResult(writer: Writer, retCode: RetCode): void {
+    writer.writeArraySize(2);
+    writer.writeUInt8(retCode.num);
+    writer.writeString(retCode.msg);
 }
 
-export function callReturnDecode(u8Arr: u8[]): CallReturn {
-    let ab = Utils.u8ArrayToArrayBuffer(u8Arr);
-    let decoder = new Decoder(ab);
-    let ret = new CallReturn();
-    let arrSize = decoder.readArraySize();
-    ret.success = decoder.readBool();
-    ret.result = decoder.readByteArray();
-    return ret;
+export function verifyResultEncode(retCode: RetCode): u8[] {
+    let sizer = new Sizer();
+    writeVerifyResult(sizer, retCode);
+    let ab = new ArrayBuffer(sizer.length);
+    let encoder = new Encoder(ab);
+    writeVerifyResult(encoder, retCode);
+    return Utils.arrayBufferToU8Array(ab);
 }

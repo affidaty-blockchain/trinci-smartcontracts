@@ -7,6 +7,7 @@ import {
     SetCertArgs,
     RemoveCertArgs,
     Identity,
+    RetCode,
 } from './types';
 import {
     profileDataDecode,
@@ -16,8 +17,9 @@ import {
     certsListEncode,
     certDataEncodeForVerify,
     decodeVerifyDataArgs,
-    callReturnDecode,
+    verifyResultEncode,
 } from './msgpack';
+import { retCodes } from './retcodes';
 
 export function my_alloc(size: i32): i32 {
     return heap.alloc(size) as i32;
@@ -29,6 +31,7 @@ export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i
     let argsU8: u8[] = MemUtils.u8ArrayFromMem(argsAddress, argsSize);
     let methodsMap = new Map<string, (ctx: Types.AppContext, args: u8[])=>Types.TCombinedPtr>();
 
+    methodsMap.set('init', init);
     methodsMap.set('set_profile_data', setProfileData);
     methodsMap.set('remove_profile_data', removeProfileData);
     methodsMap.set('set_certificate', setCertificate);
@@ -42,6 +45,19 @@ export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i
     }
 
     return methodsMap.get(ctx.method)(ctx, argsU8);
+}
+
+// INITIALIZATION
+@msgpackable
+class InitArgs {
+    // id of the account with crypto smart contact (for merkle tree verification)
+    crypto: string = '';
+}
+
+function init(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
+    let args = MsgPack.deserialize<InitArgs>(argsU8);
+    HostFunctions.storeData('cryptoAccountId', Utils.stringtoU8Array(args.crypto));
+    return MsgPack.appOutputEncode(true, [0xc0]);
 }
 
 // BEGIN - PROFILE DATA MANAGEMENT
@@ -225,10 +241,10 @@ function removeCertificate(ctx: Types.AppContext, argsU8: u8[]): Types.TCombined
 // create a leaf from data
 function makeLeaf(key: string, value: string, salt: ArrayBuffer): ArrayBuffer {
     let strToHash = `${value}${key}${arrayBufferToHexString(salt)}`;
-    HostFunctions.log(`${key} : [${strToHash}]`);
+    // HostFunctions.log(`${key} : [${strToHash}]`);
     let strBin: Uint8Array = Utils.u8ArrayToUint8Array(Utils.stringtoU8Array(strToHash));
     const hash: Uint8Array = Sha256.hash(strBin);
-    HostFunctions.log(`${key}: [${arrayBufferToHexString(hash.buffer)}]`);
+    // HostFunctions.log(`${key}: [${arrayBufferToHexString(hash.buffer)}]`);
     return hash.buffer;
 }
 
@@ -243,15 +259,6 @@ function missingSymmetryLeaves(givenLeaves: u32): u32 {
     return (2 ** calculateSymmetryDepth(givenLeaves)) - givenLeaves;
 }
 
-// pub struct MerkleTreeVerifyArgs<'a> {
-//     pub root: &'a str,
-//     pub indices: Vec<i32>,
-//     pub leaves: Vec<&'a str>,
-//     pub depth: i32,
-//     pub proofs: Vec<&'a str>,
-// }
-
-
 @msgpackable
 class MerkleTreeVerifyArgs {
     root: string = '';
@@ -263,6 +270,11 @@ class MerkleTreeVerifyArgs {
 
 function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
     HostFunctions.log('===============|verify|===============');
+    let cryptoAccountId = Utils.u8ArrayToString(HostFunctions.loadData('cryptoAccountId'));
+    if (cryptoAccountId.length < 1) {
+        return MsgPack.appOutputEncode(false, Utils.stringtoU8Array(retCodes.noInit.msg));
+    }
+
     const falseResultValue: u8[] = [0xc2];
     const trueResultValue: u8[] = [0xc3];
     let args = decodeVerifyDataArgs(argsU8);
@@ -273,26 +285,28 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
     if (identityBytes.length > 0) {
         identity = MsgPack.deserialize<Identity>(identityBytes);
     }
+
     let certsList = new Map<string, ArrayBuffer>();
     let certsListBytes = identity.certificates;
     if (certsListBytes.byteLength > 0) {
         certsList = certsListDecode(certsListBytes);
     }
     if (!certsList.has(args.certificate)) {
-        return MsgPack.appOutputEncode(true, falseResultValue);
+        return MsgPack.appOutputEncode(false, Utils.stringtoU8Array(retCodes.noCert.msg));
     }
+
     // get target certificate
     let certificate = decodeCertificate(certsList.get(args.certificate));
     // all fields certified by the certificate
     let certFields = certificate.data.fields.sort();
-    HostFunctions.log(`certificate: [${certFields.toString()}]`);
     // if any of the passed clear fields isn't present in the
     // certificate, then it cannot be verified. Therefore return false.
     for (let i = 0; i < args.data.keys().length; i++) {
         if (certFields.indexOf(args.data.keys()[i]) < 0) {
-            return MsgPack.appOutputEncode(true, falseResultValue);
+            return MsgPack.appOutputEncode(false, Utils.stringtoU8Array(retCodes.excessFields.msg));
         }
     }
+
     // certificate merkle tree depth
     let depth: u32 = calculateSymmetryDepth(certFields.length);
     // indexes of all fields with clear data relative to the certificate fields
@@ -315,12 +329,10 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
             missingFields.push(certFields[i]);
         }
     }
-    HostFunctions.log(`missing: [${missingFields.toString()}]`);
-    HostFunctions.log(`clear1: [${clearData.keys().toString()}]`);
 
     // check profile data only if there are missing fields and no multiproof
     if (missingFields.length > 0 && args.multiproof.length < 1) {
-        HostFunctions.log(`missingFields and no multiproof`);
+        // HostFunctions.log(`missingFields and no multiproof`);
         // deserialize profile data
         let profileBytes = Utils.arrayBufferToU8Array(identity.profile);
         let profile = new Map<string, string>();
@@ -332,9 +344,8 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
             if (profile.has(missingFields[i])) {
                 clearData.set(missingFields[i], profile.get(missingFields[i]));
             } else {
-                HostFunctions.log(`no data for ${missingFields[i]} field`);
-                // incomplete data without multiproof(see if condifiot). Cannot verify.
-                return MsgPack.appOutputEncode(true, falseResultValue);
+                // incomplete data without multiproof. Cannot verify.
+                return MsgPack.appOutputEncode(false, Utils.stringtoU8Array(retCodes.missingData.msg));
             }
         }
 
@@ -342,8 +353,6 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
         // check if any leaves should be added automatically
         autoLeavesNumber = missingSymmetryLeaves(certificate.data.fields.length);
     }
-    HostFunctions.log(`clear2: [${clearData.keys().toString()}]`);
-    HostFunctions.log(`autoleaves: [${autoLeavesNumber.toString()}]`);
 
     // create leaves from clear data
     for (let i = 0; i < certFields.length; i++) {
@@ -359,16 +368,11 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
         clearLeaves.push(clearLeaves[certFields.length - 1]);
     }
 
-    HostFunctions.log(`indexes: [${clearIndexes.toString()}]`);
-    HostFunctions.log(`leaves:`);
-    for (let i = 0; i < clearLeaves.length; i++) {
-        HostFunctions.log(`[${arrayBufferToHexString(clearLeaves[i])}]`);
-    }
-
     let cryptoCallArgs = new MerkleTreeVerifyArgs();
     cryptoCallArgs.depth = depth;
     cryptoCallArgs.root = arrayBufferToHexString(certificate.data.root);
     cryptoCallArgs.indices = clearIndexes;
+
     for (let i = 0; i < clearLeaves.length; i++) {
         cryptoCallArgs.leaves.push(arrayBufferToHexString(clearLeaves[i]));
     }
@@ -376,11 +380,15 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
         cryptoCallArgs.proofs.push(arrayBufferToHexString(args.multiproof[i]));
     }
 
-    let callReturnU8 =  HostFunctions.call('QmbEQJTbcKTYUU3yxpZPVZdcTwjtjYv24dD12vApRUue43', 'merkle_tree_verify', MsgPack.serialize(cryptoCallArgs));
-    let callReturn = callReturnDecode(callReturnU8);
-    // HostFunctions.log(`call result: ${test.toString()}`);
+    let callReturn =  HostFunctions.call('Qmar6CdF94dFoLZjS4nYbv6kXfdPEiFV1uuqtLyHgZjDJg', 'merkle_tree_verify', MsgPack.serialize(cryptoCallArgs));
+    let returnData: u8[] = [];
+    if (callReturn.success) {
+        returnData = [0xc0];
+    } else {
+        returnData = Utils.stringtoU8Array('invalid data');
+    }
 
-    return MsgPack.appOutputEncode(callReturn.success as boolean, Utils.arrayBufferToU8Array(callReturn.result));
+    return MsgPack.appOutputEncode(callReturn.success, returnData);
 }
 
 // END - CERTIFICATE DATA VERIFICATION
