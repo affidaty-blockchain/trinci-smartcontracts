@@ -35,7 +35,9 @@ $ ./cargo_broadcast.sh test
 ```
 $ ./build_wasm.sh
 ```
- - Note: require `rust` with target `wasm32-unknown-unknown`
+ - requires:
+   - `rust` with target `wasm32-unknown-unknown`
+   - enabling unstable options flag
 
 ### Compile all the contracts with a docker image
 ```
@@ -50,3 +52,9 @@ $ ./build_wasm_docker.sh
 
 ## `integration` directory 
  - The `integration` directory is a rust module that provide an enviroment for testing
+ - Requires (because of the trinci-core dependency):
+   - `rust` nightly toolchain
+   - `clang`
+   - `libclang-dev`
+   - `protobuf-compiler`
+ 
