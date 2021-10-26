@@ -22,11 +22,14 @@
 //!  - Input and output serialization.
 //!  - Default smart contract functionalities.
 //!  - Trigger exceptional conditions.
-
+//!
+use hashers::null::NullHasher;
 use serde_derive::{Deserialize, Serialize};
+use std::hash::BuildHasherDefault;
+use std::time::SystemTime;
 use std::{
     alloc::{alloc, Layout},
-    collections::HashMap,
+    collections::HashMap as StdHashMap,
     convert::TryInto,
     mem::align_of,
 };
@@ -34,6 +37,8 @@ use trinci_sdk::{
     rmp_deserialize, rmp_serialize, tai::AssetTransferArgs, value, AppContext, PackedValue, Value,
     WasmError, WasmResult,
 };
+
+type HashMap<K, V> = StdHashMap<K, V, BuildHasherDefault<NullHasher>>;
 
 trinci_sdk::app_export!(
     // Input and output serialization.
@@ -50,7 +55,11 @@ trinci_sdk::app_export!(
     exhaust_memory,
     infinite_recursion,
     infinite_loop,
-    null_pointer_indirection
+    null_pointer_indirection,
+    // Deterministic contract
+    random_sequence,
+    return_hashmap,
+    get_time
 );
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -218,8 +227,40 @@ fn null_pointer_indirection(_ctx: AppContext, _args: Value) -> WasmResult<Value>
     Ok(value!(null))
 }
 
+/// Return a random sequence (shall be deterministic)
+fn random_sequence(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
+    use random::Source;
+
+    let mut source = random::default().seed([0, 1]);
+    let vector = source.iter().take(3).collect::<Vec<u64>>();
+
+    let buf = trinci_sdk::rmp_serialize(&vector)?;
+    Ok(PackedValue(buf))
+}
+
+/// Return an hashmap (shall be deterministic)
+fn return_hashmap(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
+    let mut hashmap: HashMap<&str, u64> = HashMap::default();
+
+    hashmap.insert("val1", 123);
+    hashmap.insert("val2", 456);
+    hashmap.insert("val3", 789);
+
+    let buf = trinci_sdk::rmp_serialize(&hashmap)?;
+    Ok(PackedValue(buf))
+}
+
+/// Try to access to system time.
+fn get_time(_ctx: AppContext, _args: PackedValue) -> WasmResult<u64> {
+    let sys_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap();
+    Ok(sys_time.as_secs())
+}
+
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use trinci_sdk::not_wasm;
 
@@ -252,7 +293,7 @@ mod tests {
     }
 
     fn create_typed_echo_args() -> EchoArgs<'static> {
-        let mut map = HashMap::new();
+        let mut map = HashMap::default();
         map.insert(
             "k1",
             SubStruct {
@@ -372,5 +413,46 @@ mod tests {
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
 
         assert_eq!(err.to_string(), "not enough funds");
+    }
+
+    #[test]
+    fn test_random_sequence_determinism() {
+        // random_sequence
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+        let args = PackedValue::default();
+
+        let res = not_wasm::call_wrap(random_sequence, ctx, args).unwrap();
+
+        let rnd_vector: Vec<u64> = trinci_sdk::rmp_deserialize(&res.0).unwrap();
+
+        assert_eq!(rnd_vector, vec![2, 8388673, 8388673]);
+    }
+
+    #[test]
+    fn test_return_hashmap_determinism() {
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+        let args = PackedValue::default();
+
+        let hashmap = not_wasm::call_wrap(return_hashmap, ctx, args).unwrap();
+
+        let mut expected: HashMap<&str, u64> = HashMap::default();
+
+        expected.insert("val1", 123);
+        expected.insert("val2", 456);
+        expected.insert("val3", 789);
+
+        let buf = trinci_sdk::rmp_serialize(&expected).unwrap();
+
+        let expected = PackedValue(buf);
+
+        assert_eq!(hashmap.0, expected.0);
+    }
+
+    #[test]
+    fn test_get_time() {
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+        let args = PackedValue::default();
+
+        let _time = not_wasm::call_wrap(get_time, ctx, args).unwrap();
     }
 }
