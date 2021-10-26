@@ -1,5 +1,5 @@
 #!/bin/env node
-const t2lib = require('@affidaty/t2-lib');
+const t2lib = require('@developer2/t2-lib');
 const HashList = require('./include/hashlist').HashList;
 
 // CONFIGS START
@@ -16,6 +16,7 @@ console.log(`CRYPTO HASH: ${cryptoHash}`);
 let aryaAcc = new t2lib.Account();
 let cryptoAcc = new t2lib.Account();
 let certifierAcc = new t2lib.Account();
+let certifierAcc2 = new t2lib.Account();
 let userAcc = new t2lib.Account();
 let testData = {};
 let cert = new t2lib.Certificate();
@@ -28,13 +29,14 @@ async function init() {
     console.log(`ARYA      : ${aryaAcc.accountId}`);
     await certifierAcc.generate();
     console.log(`CERTIFIER : ${certifierAcc.accountId}`);
+    await certifierAcc2.generate();
+    console.log(`CERTIFIER2: ${certifierAcc2.accountId}`);
     await userAcc.generate();
     console.log(`USER      : ${userAcc.accountId}`);
 };
 
 async function initArya() {
     title('initArya');
-
     let ticket = await c.prepareAndSubmitTx(
         cryptoAcc.accountId,
         cryptoHash,
@@ -55,12 +57,8 @@ async function initArya() {
         },
         userAcc.keyPair.privateKey,
     );
-    console.log(`TICKET : ${ticket}`);
     let receipt = await c.waitForTicket(ticket);
-    console.log(`SUCCESS: ${receipt.success}`);
-    console.log(receipt);
     if (receipt.success) {
-        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
         let ticket2 = await c.prepareAndSubmitTx(
             aryaAcc.accountId,
             aryaHash,
@@ -87,7 +85,7 @@ async function setData() {
     title('setData');
     let testData = {
         name: 'John',
-        surname: 'Doe',
+        surname: 'Dow',
         sex: 'male',
         tel: '1634829548',
         email: 'john.doe@mail.net',
@@ -104,7 +102,59 @@ async function setData() {
     console.log(`SUCCESS: ${receipt.success}`);
     if (receipt.success) {
         console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
-        await printAryaData(userAcc);
+        console.log('Profile data:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:profile_data`]);
+        console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+
+async function updateData() {
+    title('setData(update)');
+    let testData = {
+        surname: 'Doe',
+        testField: 'testString',
+    };
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        aryaHash,
+        'set_profile_data',
+        testData,
+        userAcc.keyPair.privateKey,
+    );
+    console.log(`TICKET : ${ticket}`);
+    let receipt = await c.waitForTicket(ticket);
+    console.log(`SUCCESS: ${receipt.success}`);
+    if (receipt.success) {
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        console.log('Profile data:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:profile_data`]);
+        console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+async function removeData() {
+    title('removeData');
+    let args = {
+        keys: ['testField'],
+    };
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        aryaHash,
+        'remove_profile_data',
+        args,
+        userAcc.keyPair.privateKey,
+    );
+    console.log(`TICKET : ${ticket}`);
+    let receipt = await c.waitForTicket(ticket);
+    console.log(`SUCCESS: ${receipt.success}`);
+    if (receipt.success) {
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        console.log('Profile data:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:profile_data`]);
+        console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
     } else {
         console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
     }
@@ -114,6 +164,46 @@ async function setCert() {
     title('setCert');
     testData = {
         name: 'John',
+        surname: 'Dow',
+        sex: 'male',
+        tel: '1634829548',
+        email: 'john.doe@mail.net',
+    };
+    cert = new t2lib.Certificate(testData);
+    cert.create(['name', 'surname']);
+    cert.target = userAcc.accountId;
+    await cert.sign(certifierAcc.keyPair.privateKey);
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        '',
+        'set_certificate',
+        {
+            key: 'main',
+            certificate: Buffer.from(await cert.toBytes()),
+        },
+        userAcc.keyPair.privateKey,
+    );
+    console.log(`TICKET : ${ticket}`);
+    let receipt = await c.waitForTicket(ticket);
+    console.log(`SUCCESS: ${receipt.success}`);
+    if (receipt.success) {
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        console.log('certs list:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:list`]);
+        let certList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
+        console.log(certList);
+        // console.log('cert:');
+        // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
+        // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+
+async function updateCert() {
+    title('updateCert');
+    testData = {
+        name: 'John',
         surname: 'Doe',
         sex: 'male',
         tel: '1634829548',
@@ -121,26 +211,115 @@ async function setCert() {
     };
     cert = new t2lib.Certificate(testData);
     cert.create(['name', 'surname']);
+    cert.target = userAcc.accountId;
     await cert.sign(certifierAcc.keyPair.privateKey);
-
     let ticket = await c.prepareAndSubmitTx(
         aryaAcc.accountId,
         '',
         'set_certificate',
         {
-            target: userAcc.accountId,
             key: 'main',
             certificate: Buffer.from(await cert.toBytes()),
         },
-        certifierAcc.keyPair.privateKey,
+        userAcc.keyPair.privateKey,
     );
     console.log(`TICKET : ${ticket}`);
     let receipt = await c.waitForTicket(ticket);
     console.log(`SUCCESS: ${receipt.success}`);
     if (receipt.success) {
         console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
-        console.log('ARYA ASSET DATA ON TARGET:');
-        await printAryaData(userAcc);
+        console.log('certs list:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:list`]);
+        let certList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
+        console.log(certList);
+        // console.log('cert:');
+        // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
+        // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+
+async function setCert2() {
+    title('setCert2');
+    testData = {
+        name: 'John',
+        surname: 'Dow',
+        sex: 'male',
+        tel: '1634829548',
+        email: 'john.doe@mail.net',
+    };
+    cert = new t2lib.Certificate(testData);
+    cert.create(['name', 'surname']);
+    cert.target = userAcc.accountId;
+    await cert.sign(certifierAcc2.keyPair.privateKey);
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        '',
+        'set_certificate',
+        {
+            key: 'one',
+            certificate: Buffer.from(await cert.toBytes()),
+        },
+        userAcc.keyPair.privateKey,
+    );
+    let receipt = await c.waitForTicket(ticket);
+    if (receipt.success) {
+
+        let ticket2 = await c.prepareAndSubmitTx(
+            aryaAcc.accountId,
+            '',
+            'set_certificate',
+            {
+                key: 'two',
+                certificate: Buffer.from(await cert.toBytes()),
+            },
+            userAcc.keyPair.privateKey,
+        );
+        let receipt = await c.waitForTicket(ticket2);
+        if (receipt.success) {
+            console.log('certs list:');
+            let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:list`]);
+            let certList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
+            console.log(certList);
+        } else {
+            console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+        }
+
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+
+async function removeCert() {
+    title('removeCert');
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        '',
+        'remove_certificate',
+        {
+            target: userAcc.accountId,
+            certifier: certifierAcc2.accountId,
+            keys: ['*'],
+        },
+        userAcc.keyPair.privateKey,
+    );
+    console.log(`TICKET : ${ticket}`);
+    let receipt = await c.waitForTicket(ticket);
+    console.log(`SUCCESS: ${receipt.success}`);
+    if (receipt.success) {
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        console.log('certs list:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:list`]);
+        let certList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
+        console.log(certList);
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
+        // console.log('cert:');
+        // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
+        // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
     } else {
         console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
     }
@@ -186,9 +365,14 @@ async function verifyData() {
 async function main() {
     await init();
     await initArya();
-    await setData();
+    // await setData();
+    // await updateData();
+    // await removeData();
     await setCert();
-    await verifyData();
+    // await updateCert();
+    await setCert2();
+    await removeCert();
+    // await verifyData();
 }
 
 main();
@@ -197,15 +381,15 @@ function title(str) {
     console.log(`===================|${str}|===================`);
 };
 
-async function printAryaData(account) {
-    let accData = await c.accountData(account);
-    let aryaData = t2lib.Utils.bytesToObject(accData.assets[aryaAcc.accountId]);
-    if (aryaData.profile) {
-        aryaData.profile = t2lib.Utils.bytesToObject(aryaData.profile);
-    }
-    if (aryaData.certificates) {
-        aryaData.certificates = t2lib.Utils.bytesToObject(aryaData.certificates);
-    }
-    console.log(`ARYA DATA ON ${account.accountId}:`);
-    console.log(aryaData);
-}
+// async function printAryaData(account) {
+//     let accData = await c.accountData(aryaAcc, ``);
+//     let aryaData = t2lib.Utils.bytesToObject(accData.assets[aryaAcc.accountId]);
+//     if (aryaData.profile) {
+//         aryaData.profile = t2lib.Utils.bytesToObject(aryaData.profile);
+//     }
+//     if (aryaData.certificates) {
+//         aryaData.certificates = t2lib.Utils.bytesToObject(aryaData.certificates);
+//     }
+//     console.log(`ARYA DATA ON ${account.accountId}:`);
+//     console.log(aryaData);
+// }

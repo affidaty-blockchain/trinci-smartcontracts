@@ -2,6 +2,7 @@ import { Writer, Encoder, Decoder, Sizer } from '@wapc/as-msgpack';
 import { Utils } from '../node_modules/@affidaty/trinci-sdk-as';
 import { Certificate, CertData, VerifyDataArgs, RetCode } from './types';
 
+// PROFILE DATA
 export function profileDataDecode(dataU8Arr: u8[]): Map<string, string> {
     let dataArrayBuffer = Utils.u8ArrayToArrayBuffer(dataU8Arr);
     let result = new Map<string, string>();
@@ -35,17 +36,44 @@ export function profileDataEncode(dataMap: Map<string, string>): u8[] {
     return Utils.arrayBufferToU8Array(arrayBuffer);
 }
 
+// CERTIFICATES
+export function certsListDecode(certsListBytes: u8[]): string[] {
+    let ab = Utils.u8ArrayToArrayBuffer(certsListBytes);
+    let decoder = new Decoder(ab);
+    let result: string[] = [];
+    let arraySize = decoder.readArraySize();
+    for (let i: u32 = 0; i < arraySize; i++) {
+        result.push(decoder.readString());
+    }
+    return result;
+}
+
+function writeCertsList(writer: Writer, certsList: string[]): void {
+    writer.writeArraySize(certsList.length);
+    for (let i: i32 = 0; i < certsList.length; i++) {
+        writer.writeString(certsList[i]);
+    }
+}
+
+export function certsListEncode(certsList: string[]): u8[] {
+    let sizer = new Sizer();
+    writeCertsList(sizer, certsList);
+    let arrayBuffer = new ArrayBuffer(sizer.length);
+    let encoder = new Encoder(arrayBuffer);
+    writeCertsList(encoder, certsList);
+    return Utils.arrayBufferToU8Array(arrayBuffer);
+}
+
 export function decodeCertificate(certBytes: ArrayBuffer): Certificate {
     let decoder = new Decoder(certBytes);
-
     let resultCert = new Certificate();
-
-    let hasMultiProof = false
-    if(decoder.readArraySize() == 3) {
+    let hasMultiProof = false;
+    let topMostSize = decoder.readArraySize();
+    if(topMostSize == 3) {
         hasMultiProof = true;
     }
-
     decoder.readArraySize();
+    resultCert.data.target = decoder.readString();
     let fieldsNum = decoder.readArraySize();
     for (let i: u32 = 0; i < fieldsNum; i++) {
         resultCert.data.fields.push(decoder.readString());
@@ -66,7 +94,8 @@ export function decodeCertificate(certBytes: ArrayBuffer): Certificate {
 }
 
 function writeCertData(writer: Writer, certData: CertData): void {
-    writer.writeArraySize(4);
+    writer.writeArraySize(5);
+    writer.writeString(certData.target);
     writer.writeArraySize(certData.fields.length);
     for (let fieldIdx = 0; fieldIdx < certData.fields.length; fieldIdx++) {
         writer.writeString(certData.fields[fieldIdx]);
@@ -86,36 +115,6 @@ export function certDataEncodeForVerify(certData: CertData): u8[] {
     let encoder = new Encoder(ab);
     writeCertData(encoder, certData);
     return Utils.arrayBufferToU8Array(ab);
-}
-
-export function certsListDecode(certsList: ArrayBuffer): Map<string, ArrayBuffer> {
-    let decoder = new Decoder(certsList);
-    let result = new Map<string, ArrayBuffer>();
-    let mapSize = decoder.readMapSize();
-    for (let i: u32 = 0; i < mapSize; i++) {
-        let key = decoder.readString();
-        let value = decoder.readByteArray();
-        result.set(key, value);
-    }
-    return result;
-}
-
-function writeCertsList(writer: Writer, certsMap: Map<string, ArrayBuffer>): void {
-    writer.writeMapSize(certsMap.size);
-    const keys = certsMap.keys();
-    for (let i: i32 = 0; i < keys.length; i++) {
-        writer.writeString(keys[i]);
-        writer.writeByteArray(certsMap.get(keys[i]));
-    }
-}
-
-export function certsListEncode(certsMap: Map<string, ArrayBuffer>): ArrayBuffer {
-    let sizer = new Sizer();
-    writeCertsList(sizer, certsMap);
-    let arrayBuffer = new ArrayBuffer(sizer.length);
-    let encoder = new Encoder(arrayBuffer);
-    writeCertsList(encoder, certsMap);
-    return arrayBuffer;
 }
 
 export function decodeVerifyDataArgs(argsU8: u8[]): VerifyDataArgs {
