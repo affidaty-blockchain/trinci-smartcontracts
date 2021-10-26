@@ -24,6 +24,7 @@
 //!  - Trigger exceptional conditions.
 //!
 use hashers::null::NullHasher;
+use random::Source;
 use serde_derive::{Deserialize, Serialize};
 use std::hash::BuildHasherDefault;
 use std::time::SystemTime;
@@ -49,6 +50,8 @@ trinci_sdk::app_export!(
     nested_call,
     balance,
     transfer,
+    // Utility methods
+    mint,
     // Trigger exceptional conditions.
     divide_by_zero,
     trigger_panic,
@@ -126,6 +129,16 @@ fn balance(ctx: AppContext, _args: PackedValue) -> WasmResult<u64> {
     Ok(value)
 }
 
+/// Mint some `account asset` units on the account
+fn mint(ctx: AppContext, args: u64) -> WasmResult<u64> {
+    trinci_sdk::log("Called method `mint`");
+
+    let value = load_my_asset(ctx.owner);
+    store_my_asset(ctx.owner, value + args);
+
+    Ok(value + args)
+}
+
 /// Call the host function hf_transfer
 ///
 /// Transfer an *amount* of *asset* from the *caller account* to the *dest account*
@@ -198,7 +211,7 @@ fn exhaust_memory(_ctx: AppContext, _args: Value) -> WasmResult<Value> {
 fn infinite_recursion(ctx: AppContext, args: Value) -> WasmResult<Value> {
     if let Value::Bool(first_call) = args {
         if first_call {
-            trinci_sdk::log("Called method `null_pointer_indirection`");
+            trinci_sdk::log("Called method `infinite_recursion`");
         }
         return infinite_recursion(ctx, value!(false));
     }
@@ -229,7 +242,7 @@ fn null_pointer_indirection(_ctx: AppContext, _args: Value) -> WasmResult<Value>
 
 /// Return a random sequence (shall be deterministic)
 fn random_sequence(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
-    use random::Source;
+    trinci_sdk::log("Called method `random_sequence`");
 
     let mut source = random::default().seed([0, 1]);
     let vector = source.iter().take(3).collect::<Vec<u64>>();
@@ -240,6 +253,8 @@ fn random_sequence(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedVal
 
 /// Return an hashmap (shall be deterministic)
 fn return_hashmap(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
+    trinci_sdk::log("Called method `return_hashmap`");
+
     let mut hashmap: HashMap<&str, u64> = HashMap::default();
 
     hashmap.insert("val1", 123);
@@ -252,6 +267,8 @@ fn return_hashmap(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValu
 
 /// Try to access to system time.
 fn get_time(_ctx: AppContext, _args: PackedValue) -> WasmResult<u64> {
+    trinci_sdk::log("Called method `get_time`");
+
     let sys_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap();
