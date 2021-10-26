@@ -238,7 +238,7 @@ dependencies = [
 [[package]]
 name = "trinci-sdk"
 version = "0.1.1"
-source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust#25930dfa4a9cf73eed9b3ccabe077f07cb74c5ab"
+source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust#f51773e1cdb30c0b0ca17820b618ebc29fb0d3d2"
 dependencies = [
  "bs58",
  "hex",
