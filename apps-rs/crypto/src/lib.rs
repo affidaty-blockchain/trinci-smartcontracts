@@ -98,7 +98,7 @@ mod tests {
         let public_key = hex::decode(PUBLIC_KEY).unwrap();
 
         let pk = PublicKey {
-            curve: CurveId::Secp384R1,
+            curve_id: CurveId::Secp384R1,
             value: public_key,
         };
 

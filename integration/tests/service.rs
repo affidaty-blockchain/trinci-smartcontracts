@@ -178,7 +178,7 @@ fn check_contract_registration_rxs_second(rxs: Vec<Receipt>) {
     // 1.
     assert!(!rxs[1].success);
     let msg = String::from_utf8_lossy(&rxs[1].returns);
-    assert_eq!(msg, "smart contract fault: contract already registered");
+    assert_eq!(msg, "smart contract fault: contract with the same name and version already registered");
 }
 
 #[test]

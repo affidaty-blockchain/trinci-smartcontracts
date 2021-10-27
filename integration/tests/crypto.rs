@@ -113,7 +113,7 @@ pub fn ed25519_test_public_key() -> Ed25519PublicKey {
 
 fn verify_ecdsa_tx(owner_info: &AccountInfo, user_info: &AccountInfo, valid: bool) -> Transaction {
     let pk = PublicKey::Ecdsa(EcdsaPublicKey {
-        curve: CurveId::Secp384R1,
+        curve_id: CurveId::Secp384R1,
         value: hex::decode(&ECDSA_PK_HEX).unwrap(),
     });
 
