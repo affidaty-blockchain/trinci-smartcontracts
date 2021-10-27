@@ -117,8 +117,8 @@ pub fn create_test_tx_data(
 ) -> TransactionData {
     static mut MYNONCE: u64 = 0;
     let ecdsa_public_key = ecdsa::PublicKey {
-        curve: ecdsa::CurveId::Secp384R1,
         value: hex::decode(public_key).unwrap(),
+        curve_id: ecdsa::CurveId::Secp384R1,
     };
     let public_key = PublicKey::Ecdsa(ecdsa_public_key);
     let args = rmp_serialize_named(&args).unwrap();
@@ -149,7 +149,8 @@ pub fn create_test_tx(
     let data = create_test_tx_data(id, public_key, target, method, args);
     let public_bytes = hex::decode(public_key).unwrap();
     let private_bytes = hex::decode(private_key).unwrap();
-    let ecdsa_keypair = ecdsa::KeyPair::new(&private_bytes, &public_bytes).unwrap();
+    let ecdsa_keypair =
+        ecdsa::KeyPair::new(ecdsa::CurveId::Secp384R1, &private_bytes, &public_bytes).unwrap();
     let keypair = KeyPair::Ecdsa(ecdsa_keypair);
     let signature = data.sign(&keypair).unwrap();
     Transaction { data, signature }
@@ -167,7 +168,7 @@ pub fn create_default_account(id: &str) -> Account {
 /// Panics if the `key` string is not a valid hex string.
 pub fn p384_hex_key_to_account_id(key: &str) -> String {
     let public_key_ecdsa = ecdsa::PublicKey {
-        curve: ecdsa::CurveId::Secp384R1,
+        curve_id: ecdsa::CurveId::Secp384R1,
         value: hex::decode(key).unwrap(), // TODO: eventually remove the overall function.
     };
     public_key_ecdsa.to_account_id()

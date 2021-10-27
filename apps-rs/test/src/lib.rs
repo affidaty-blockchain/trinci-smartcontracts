@@ -60,8 +60,8 @@ trinci_sdk::app_export!(
     infinite_loop,
     null_pointer_indirection,
     // Deterministic contract
-    random_sequence,
-    return_hashmap,
+    get_random_sequence,
+    get_hashmap,
     get_time
 );
 
@@ -241,7 +241,7 @@ fn null_pointer_indirection(_ctx: AppContext, _args: Value) -> WasmResult<Value>
 }
 
 /// Return a random sequence (shall be deterministic)
-fn random_sequence(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
+fn get_random_sequence(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
     trinci_sdk::log("Called method `random_sequence`");
 
     let mut source = random::default().seed([0, 1]);
@@ -252,7 +252,7 @@ fn random_sequence(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedVal
 }
 
 /// Return an hashmap (shall be deterministic)
-fn return_hashmap(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
+fn get_hashmap(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
     trinci_sdk::log("Called method `return_hashmap`");
 
     let mut hashmap: HashMap<&str, u64> = HashMap::default();
@@ -438,7 +438,7 @@ mod tests {
         let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
         let args = PackedValue::default();
 
-        let res = not_wasm::call_wrap(random_sequence, ctx, args).unwrap();
+        let res = not_wasm::call_wrap(get_random_sequence, ctx, args).unwrap();
 
         let rnd_vector: Vec<u64> = trinci_sdk::rmp_deserialize(&res.0).unwrap();
 
@@ -450,7 +450,7 @@ mod tests {
         let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
         let args = PackedValue::default();
 
-        let hashmap = not_wasm::call_wrap(return_hashmap, ctx, args).unwrap();
+        let hashmap = not_wasm::call_wrap(get_hashmap, ctx, args).unwrap();
 
         let mut expected: HashMap<&str, u64> = HashMap::default();
 

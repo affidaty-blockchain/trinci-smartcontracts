@@ -244,7 +244,7 @@ fn null_pointer_indirection_tx(account_info: &AccountInfo) -> Transaction {
     )
 }
 
-fn random_sequence_tx(account_info: &AccountInfo) -> Transaction {
+fn get_random_sequence_tx(account_info: &AccountInfo) -> Transaction {
     let args = value!({});
 
     common::create_test_tx(
@@ -252,12 +252,12 @@ fn random_sequence_tx(account_info: &AccountInfo) -> Transaction {
         &account_info.pub_key,
         &account_info.pvt_key,
         *TEST_APP_HASH,
-        "random_sequence",
+        "get_random_sequence",
         args,
     )
 }
 
-fn return_hashmap_tx(account_info: &AccountInfo) -> Transaction {
+fn get_hashmap_tx(account_info: &AccountInfo) -> Transaction {
     let args = value!({});
 
     common::create_test_tx(
@@ -265,7 +265,7 @@ fn return_hashmap_tx(account_info: &AccountInfo) -> Transaction {
         &account_info.pub_key,
         &account_info.pvt_key,
         *TEST_APP_HASH,
-        "return_hashmap",
+        "get_hashmap",
         args,
     )
 }
@@ -342,11 +342,11 @@ fn create_txs() -> Vec<Transaction> {
         null_pointer_indirection_tx(caller_info),
         // Deterministic contract
         // 14. random_sequence,
-        random_sequence_tx(caller_info),
+        get_random_sequence_tx(caller_info),
         // 15. random_sequence,
-        random_sequence_tx(caller_info),
+        get_random_sequence_tx(caller_info),
         // 16. return_hashmap,
-        return_hashmap_tx(caller_info),
+        get_hashmap_tx(caller_info),
         // 17. get_time,
         get_time_tx(caller_info),
     ]

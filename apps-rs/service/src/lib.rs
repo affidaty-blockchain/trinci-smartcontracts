@@ -79,6 +79,17 @@ fn contract_registration(ctx: AppContext, args: ContractRegistrationArgs) -> Was
 
     let contract_hash = calculate_contract_sha256_multihash(args.bin);
 
+    // Check if a contract with the same name and same version already exists
+
+    if contract_list
+        .values()
+        .any(|data| data.name == args.name && data.version == args.version)
+    {
+        return Err(WasmError::new(
+            "contract with the same name and version already registered",
+        ));
+    }
+
     // Add the new contract and check if the asset already exist
     if contract_list
         .insert(contract_hash.clone(), contract_data)
@@ -112,6 +123,11 @@ fn asset_registration(ctx: AppContext, args: AssetRegistrationArgs) -> WasmResul
         url: args.url,
         contract: args.contract,
     };
+
+    // Check if an asset with the same name has already been registered
+    if asset_list.values().any(|data| data.name == args.name) {
+        return Err(WasmError::new("asset name already registered"));
+    }
 
     // Add the new asset and check if the asset already exist
     if asset_list.insert(args.id.to_string(), asset_data).is_some() {
@@ -342,11 +358,41 @@ mod tests {
             &[1u8, 2, 3],
         );
 
-        let args = create_contract_registration_args();
+        let mut args = create_contract_registration_args();
+        args.version = "3.4.5";
 
         let err = not_wasm::call_wrap(contract_registration, ctx, args).unwrap_err();
 
         assert_eq!(err.to_string(), "contract already registered");
+    }
+
+    #[test]
+    fn duplicate_contract_name_version_registration_test() {
+        let ctx = create_app_context(SERVICE_ID, CALLER_ID);
+
+        let mut map: BTreeMap<String, ContractRegistrationData> = BTreeMap::default();
+        map.insert(
+            hex::encode(CONTRACT_MULTIHASH),
+            create_contract_registration_data(),
+        );
+        let buf = rmp_serialize(&map).unwrap();
+
+        not_wasm::set_account_data(SERVICE_ID, CONTRACTS_KEY, &buf);
+        not_wasm::set_account_data(
+            SERVICE_ID,
+            hex::encode(CONTRACT_MULTIHASH).as_str(),
+            &[1u8, 2, 3],
+        );
+
+        let mut args = create_contract_registration_args();
+        args.bin = &[5, 6, 7, 8];
+
+        let err = not_wasm::call_wrap(contract_registration, ctx, args).unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "contract with the same name and version already registered"
+        );
     }
 
     #[test]
@@ -402,11 +448,30 @@ mod tests {
 
         not_wasm::set_account_data(SERVICE_ID, ASSETS_KEY, &buf);
 
-        let args = create_asset_registration_args();
+        let mut args = create_asset_registration_args();
+        args.name = "AnotherName";
 
         let err = not_wasm::call_wrap(asset_registration, ctx, args).unwrap_err();
 
         assert_eq!(err.to_string(), "asset already registered");
+    }
+
+    #[test]
+    fn duplicate_name_registration_test() {
+        let ctx = not_wasm::create_app_context(SERVICE_ID, CALLER_ID);
+
+        let mut map: BTreeMap<String, AssetRegistrationData> = BTreeMap::default();
+        map.insert(ASSET_ID.to_string(), create_asset_registration_data());
+        let buf = rmp_serialize(&map).unwrap();
+
+        not_wasm::set_account_data(SERVICE_ID, ASSETS_KEY, &buf);
+
+        let mut args = create_asset_registration_args();
+        args.id = "AnotherId";
+
+        let err = not_wasm::call_wrap(asset_registration, ctx, args).unwrap_err();
+
+        assert_eq!(err.to_string(), "asset name already registered");
     }
 
     #[test]
