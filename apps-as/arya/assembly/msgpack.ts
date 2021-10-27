@@ -1,6 +1,6 @@
 import { Writer, Encoder, Decoder, Sizer } from '@wapc/as-msgpack';
 import { Utils } from '../node_modules/@affidaty/trinci-sdk-as';
-import { Certificate, CertData, VerifyDataArgs, RetCode } from './types';
+import { Certificate, CertData, Delegation, DelegData, VerifyDataArgs, RetCode } from './types';
 
 // PROFILE DATA
 export function profileDataDecode(dataU8Arr: u8[]): Map<string, string> {
@@ -12,6 +12,17 @@ export function profileDataDecode(dataU8Arr: u8[]): Map<string, string> {
         let key = decoder.readString();
         let val = decoder.readString();
         result.set(key, val);
+    }
+    return result;
+}
+
+export function RemoveProfileDataArgsDecode(dataU8Arr: u8[]): string[] {
+    let dataArrayBuffer = Utils.u8ArrayToArrayBuffer(dataU8Arr);
+    let result: string[] = [];
+    let decoder = new Decoder(dataArrayBuffer);
+    let arraySize = decoder.readArraySize();
+    for (let i: u32 = 0; i < arraySize; i++) {
+        result.push(decoder.readString());
     }
     return result;
 }
@@ -156,5 +167,55 @@ export function verifyResultEncode(retCode: RetCode): u8[] {
     let ab = new ArrayBuffer(sizer.length);
     let encoder = new Encoder(ab);
     writeVerifyResult(encoder, retCode);
+    return Utils.arrayBufferToU8Array(ab);
+}
+
+export function decodeDelegation(certBytes: ArrayBuffer): Delegation {
+    let decoder = new Decoder(certBytes);
+    let result = new Delegation();
+    decoder.readArraySize(); // topmost
+    decoder.readArraySize(); // data
+    result.data.delegate = decoder.readString();
+    decoder.readArraySize(); // delegator
+    result.data.delegator.type = decoder.readString();
+    result.data.delegator.curve = decoder.readString();
+    result.data.delegator.value = decoder.readByteArray();
+    result.data.network = decoder.readString();
+    result.data.target = decoder.readString();
+    result.data.expiration = decoder.readUInt64();
+    let capsSize = decoder.readMapSize(); // capabilities size
+    for (let i: u32 = 0; i < capsSize; i++) {
+        let key = decoder.readString();
+        let value = decoder.readBool();
+        result.data.capabilities.set(key, value);
+    }
+    result.signature = decoder.readByteArray();
+    return result;
+}
+
+function writeDelegData(writer: Writer, delegData: DelegData): void {
+    writer.writeArraySize(6);
+    writer.writeString(delegData.delegate);
+    writer.writeArraySize(3);
+    writer.writeString(delegData.delegator.type);
+    writer.writeString(delegData.delegator.curve);
+    writer.writeByteArray(delegData.delegator.value);
+    writer.writeString(delegData.network);
+    writer.writeString(delegData.target);
+    writer.writeUInt64(delegData.expiration);
+    let caps = delegData.capabilities.keys();
+    writer.writeMapSize(caps.length);
+    for (let i = 0; i < caps.length; i++) {
+        writer.writeString(caps[i]);
+        writer.writeBool(delegData.capabilities.get(caps[i]))
+    }
+}
+
+export function delegDataEncodeForVerify(delegData: DelegData): u8[] {
+    let sizer = new Sizer();
+    writeDelegData(sizer, delegData);
+    let ab = new ArrayBuffer(sizer.length);
+    let encoder = new Encoder(ab);
+    writeDelegData(encoder, delegData);
     return Utils.arrayBufferToU8Array(ab);
 }

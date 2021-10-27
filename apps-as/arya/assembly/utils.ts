@@ -7,8 +7,9 @@ import {
     certsListDecode,
     certsListEncode,
     decodeCertificate,
+    decodeDelegation,
 } from './msgpack';
-import { Certificate } from './types';
+import { Certificate, Delegation } from './types';
 
 export function arrayBufferToHexString(ab: ArrayBuffer): string {
     let result: string = '';
@@ -95,4 +96,35 @@ export function loadCertificate(account: string, fullKey: string): Certificate {
 
 export function removeCertificate(account: string, fullKey: string): void {
     HostFunctions.removeData(`${account}:certificates:${fullKey}`);
+}
+
+export function loadDelegList(account: string): string[] {
+    let result: string[] = [];
+    let certsListBytes = HostFunctions.loadData(`${account}:delegations:list`);
+    if (certsListBytes.length > 0) {
+        result = certsListDecode(certsListBytes);
+    }
+    return result;
+}
+
+export function saveDelegList(account: string, delegList: string[]): void {
+    let certsListBytes = certsListEncode(delegList);
+    HostFunctions.storeData(`${account}:delegations:list`, certsListBytes);
+}
+
+export function saveDelegationBytes(account: string, delegBytes: ArrayBuffer, fullKey: string): void {
+    HostFunctions.storeData(`${account}:delegations:${fullKey}`, Utils.arrayBufferToU8Array(delegBytes));
+}
+
+export function loadDelegation(account: string, fullKey: string): Delegation {
+    let result = new Delegation();
+    let delegBytes = HostFunctions.loadData(`${account}:delegations:${fullKey}`);
+    if (delegBytes.length > 0) {
+        result = decodeDelegation(Utils.u8ArrayToArrayBuffer(delegBytes));
+    }
+    return result;
+}
+
+export function removeDelegation(account: string, fullKey: string): void {
+    HostFunctions.removeData(`${account}:delegations:${fullKey}`);
 }

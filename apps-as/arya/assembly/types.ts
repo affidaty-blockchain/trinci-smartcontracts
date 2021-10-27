@@ -1,4 +1,35 @@
 import { Types } from '../node_modules/@affidaty/trinci-sdk-as'
+// INTERNAL
+// nested in Certificate class
+export class CertData {
+    target: string = '';
+    fields: string[] = [];
+    salt: ArrayBuffer = new ArrayBuffer(0);
+    root: ArrayBuffer = new ArrayBuffer(0);
+    certifier: Types.PublicKey = new Types.PublicKey();
+}
+
+// main certficate structure
+export class Certificate {
+    data: CertData = new CertData();
+    signature: ArrayBuffer = new ArrayBuffer(0);
+    multiProof: ArrayBuffer[] = [];
+}
+
+export class DelegData {
+    delegate: string = '';
+    delegator: Types.PublicKey = new Types.PublicKey();
+    network: string = '';
+    target: string = '';
+    expiration: u64 = 0;
+    capabilities: Map<string, bool> = new Map<string, bool>();
+}
+
+export class Delegation {
+    data: DelegData = new DelegData();
+    signature: ArrayBuffer = new ArrayBuffer(0);
+}
+
 
 // ARGS
 // args structure for "init" method
@@ -35,22 +66,35 @@ export class VerifyDataArgs {
     multiproof: ArrayBuffer[] = [];
 }
 
-// INTERNAL
-
-// nested in Certificate class
-export class CertData {
-    target: string = '';
-    fields: string[] = [];
-    salt: ArrayBuffer = new ArrayBuffer(0);
-    root: ArrayBuffer = new ArrayBuffer(0);
-    certifier: Types.PublicKey = new Types.PublicKey();
+@msgpackable
+export class MerkleTreeVerifyArgs {
+    root: string = '';
+    indices: u32[] = [];
+    leaves: string[] = [];
+    depth: u32 = 0;
+    proofs: string[] = [];
 }
 
-// main certficate structure
-export class Certificate {
-    data: CertData = new CertData();
-    signature: ArrayBuffer = new ArrayBuffer(0);
-    multiProof: ArrayBuffer[] = [];
+@msgpackable
+export class SetDelegationArgs {
+    key: string = '';
+    delegation: ArrayBuffer = new ArrayBuffer(0);
+}
+
+// args structure for "remove_certificate" method
+@msgpackable
+export class RemoveDelegArgs {
+    delegate: string = '';
+    delegator: string = '';
+    targets: string[] = [];
+}
+
+@msgpackable
+export class VerifyCapabilityArgs {
+    delegate: string = '';
+    delegator: string = '';
+    target: string = '';
+    method: string = '';
 }
 
 export class RetCode {

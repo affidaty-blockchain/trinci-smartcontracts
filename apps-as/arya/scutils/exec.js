@@ -105,6 +105,10 @@ async function setData() {
         console.log('Profile data:');
         let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:profile_data`]);
         console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
     } else {
         console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
     }
@@ -131,15 +135,19 @@ async function updateData() {
         console.log('Profile data:');
         let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:profile_data`]);
         console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
     } else {
         console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
     }
 }
 async function removeData() {
     title('removeData');
-    let args = {
-        keys: ['testField'],
-    };
+    let args = [
+        'testField',
+    ];
     let ticket = await c.prepareAndSubmitTx(
         aryaAcc.accountId,
         aryaHash,
@@ -155,6 +163,10 @@ async function removeData() {
         console.log('Profile data:');
         let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:profile_data`]);
         console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
     } else {
         console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
     }
@@ -192,6 +204,10 @@ async function setCert() {
         let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:list`]);
         let certList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
         console.log(certList);
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
         // console.log('cert:');
         // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
         // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
@@ -232,6 +248,10 @@ async function updateCert() {
         let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:list`]);
         let certList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
         console.log(certList);
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
         // console.log('cert:');
         // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
         // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
@@ -282,6 +302,10 @@ async function setCert2() {
             let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:list`]);
             let certList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
             console.log(certList);
+            console.log('keys list:');
+            let allData = await c.accountData(aryaAcc, ['*']);
+            let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+            console.log(keysList);
         } else {
             console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
         }
@@ -331,6 +355,7 @@ async function verifyData() {
     let personalData = {
         name: 'John',
         surname: 'Doe',
+
     }
 
     let myAcc = new t2lib.Account();
@@ -362,17 +387,198 @@ async function verifyData() {
     }
 }
 
+async function setDelegation() {
+    title('setdelegation');
+    console.log(cryptoAcc.accountId);
+    let d = new t2lib.Delegation();
+    d.delegate = userAcc.accountId;
+    d.network = 'nightly';
+    d.target = cryptoAcc.accountId;
+    d.capabilities = {
+        '*': true,
+        method1: false,
+    }
+    await d.sign(certifierAcc.keyPair.privateKey);
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        '',
+        'set_delegation',
+        {
+            delegation: Buffer.from(await d.toBytes()),
+        },
+        certifierAcc.keyPair.privateKey,
+    );
+    console.log(`TICKET : ${ticket}`);
+    let receipt = await c.waitForTicket(ticket);
+    console.log(`SUCCESS: ${receipt.success}`);
+    if (receipt.success) {
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        console.log('delegs list:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:delegations:list`]);
+        let delegList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
+        console.log(delegList);
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
+        // console.log('cert:');
+        // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
+        // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+
+async function setDelegation2() {
+    title('setdelegation2');
+    console.log(cryptoAcc.accountId);
+    let d = new t2lib.Delegation();
+    d.delegate = userAcc.accountId;
+    d.network = 'nightly';
+    d.target = cryptoAcc.accountId;
+    d.capabilities = {
+        '*': true,
+        method1: false,
+    }
+    await d.sign(certifierAcc2.keyPair.privateKey);
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        '',
+        'set_delegation',
+        {
+            delegation: Buffer.from(await d.toBytes()),
+        },
+        certifierAcc2.keyPair.privateKey,
+    );
+    let receipt = await c.waitForTicket(ticket);
+    if (receipt.success) {
+        d.target = aryaAcc.accountId
+        await d.sign(certifierAcc2.keyPair.privateKey);
+        let ticket = await c.prepareAndSubmitTx(
+            aryaAcc.accountId,
+            '',
+            'set_delegation',
+            {
+                delegation: Buffer.from(await d.toBytes()),
+            },
+            userAcc.keyPair.privateKey,
+        );
+        console.log(`TICKET : ${ticket}`);
+        let receipt = await c.waitForTicket(ticket);
+        console.log(`SUCCESS: ${receipt.success}`);
+        if (receipt.success) {
+            console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+            console.log('delegs list:');
+            let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:delegations:list`]);
+            let delegList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
+            console.log(delegList);
+            console.log('keys list:');
+            let allData = await c.accountData(aryaAcc, ['*']);
+            let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+            console.log(keysList);
+            // console.log('cert:');
+            // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
+            // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+        } else {
+            console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+        }
+
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        console.log('delegs list:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:delegations:list`]);
+        let delegList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
+        console.log(delegList);
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
+        // console.log('cert:');
+        // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
+        // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+
+async function removeDelegation() {
+    title('removeDelegation');
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        '',
+        'remove_delegation',
+        {
+            delegate: userAcc.accountId,
+            delegator: certifierAcc2.accountId,
+            targets: ['*'],
+        },
+        userAcc.keyPair.privateKey,
+    );
+    console.log(`TICKET : ${ticket}`);
+    let receipt = await c.waitForTicket(ticket);
+    console.log(`SUCCESS: ${receipt.success}`);
+    if (receipt.success) {
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        console.log('certs list:');
+        let profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:delegations:list`]);
+        let certList = t2lib.Utils.bytesToObject(profileData.requestedData[0]);
+        console.log(certList);
+        console.log('keys list:');
+        let allData = await c.accountData(aryaAcc, ['*']);
+        let keysList = t2lib.Utils.bytesToObject(allData.requestedData[0]);
+        console.log(keysList);
+        // console.log('cert:');
+        // profileData = await c.accountData(aryaAcc, [`${userAcc.accountId}:certificates:${certList[0]}`]);
+        // console.log(t2lib.Utils.bytesToObject(profileData.requestedData[0]));
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+
+async function verifyCapability() {
+    title('verifyCapability');
+
+    let ticket = await c.prepareAndSubmitTx(
+        aryaAcc.accountId,
+        '',
+        'verify_capability',
+        {
+            delegate: userAcc.accountId,
+            delegator: certifierAcc.accountId,
+            target: cryptoAcc.accountId,
+            method: 'method1'
+            // '*': true,
+            // method1: false,
+        },
+        userAcc.keyPair.privateKey,
+    );
+    console.log(`TICKET : ${ticket}`);
+    let receipt = await c.waitForTicket(ticket);
+    console.log(`SUCCESS: ${receipt.success}`);
+    if (receipt.success) {
+        console.log(`RESULT : [${Buffer.from(receipt.result).toString('hex')}]`);
+        // console.log(t2lib.Utils.bytesToObject(receipt.result));
+        // console.log('ARYA ASSET DATA ON TARGET:');
+        // await printAryaData(userAcc);
+    } else {
+        console.log(`ERROR : ${Buffer.from(receipt.result).toString()}`);
+    }
+}
+
 async function main() {
     await init();
     await initArya();
     // await setData();
     // await updateData();
     // await removeData();
-    await setCert();
+    // await setCert();
     // await updateCert();
-    await setCert2();
-    await removeCert();
+    // await setCert2();
+    // await removeCert();
     // await verifyData();
+    await setDelegation();
+    await setDelegation2();
+    await removeDelegation();
+    await verifyCapability();
 }
 
 main();
@@ -380,16 +586,3 @@ main();
 function title(str) {
     console.log(`===================|${str}|===================`);
 };
-
-// async function printAryaData(account) {
-//     let accData = await c.accountData(aryaAcc, ``);
-//     let aryaData = t2lib.Utils.bytesToObject(accData.assets[aryaAcc.accountId]);
-//     if (aryaData.profile) {
-//         aryaData.profile = t2lib.Utils.bytesToObject(aryaData.profile);
-//     }
-//     if (aryaData.certificates) {
-//         aryaData.certificates = t2lib.Utils.bytesToObject(aryaData.certificates);
-//     }
-//     console.log(`ARYA DATA ON ${account.accountId}:`);
-//     console.log(aryaData);
-// }
