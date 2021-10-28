@@ -2084,7 +2084,7 @@ dependencies = [
 [[package]]
 name = "trinci-core"
 version = "2.0.0"
-source = "git+https://github.com/affidaty-blockchain/trinci-core#5c64c3ff3ef33ae592f867bfaafcfe31435d95b8"
+source = "git+https://github.com/affidaty-blockchain/trinci-core#fb3dfdb5391ec3dd83581fedb83ef8dfa910d43b"
 dependencies = [
  "async-std",
  "bitflags",
