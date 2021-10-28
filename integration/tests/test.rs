@@ -16,7 +16,6 @@
 // along with TRINCI. If not, see <https://www.gnu.org/licenses/>.
 
 //! Crypto integration tests
-use hashers::null::NullHasher;
 use integration::common::{SerdeValue, PUB_KEY2, PVT_KEY2};
 use integration::{
     common::{self, AccountInfo, PUB_KEY1, PVT_KEY1},
@@ -28,7 +27,6 @@ use trinci_sdk::tai::AssetTransferArgs;
 use trinci_sdk::value;
 
 use std::collections::HashMap;
-use std::hash::BuildHasherDefault;
 use trinci_core::{base::serialize::rmp_deserialize, crypto::Hash, Receipt, Transaction};
 
 lazy_static! {
@@ -463,15 +461,13 @@ fn check_rxs(rxs: Vec<Receipt>) {
     );
     // 16. return_hashmap,
     assert!(rxs[16].success);
-    let res: HashMap<&str, u64, BuildHasherDefault<NullHasher>> =
-        trinci_sdk::rmp_deserialize(&rxs[16].returns).unwrap();
-
-    let mut expected: HashMap<&str, u64, BuildHasherDefault<NullHasher>> = HashMap::default();
-    expected.insert("val1", 123);
-    expected.insert("val2", 456);
-    expected.insert("val3", 789);
-
-    assert_eq!(res, expected);
+    assert_eq!(
+        &rxs[16].returns,
+        &vec![
+            131, 164, 118, 97, 108, 49, 123, 164, 118, 97, 108, 50, 205, 1, 200, 164, 118, 97, 108,
+            51, 205, 3, 21
+        ]
+    );
 
     // 17. get_time,
     assert!(!rxs[17].success);
