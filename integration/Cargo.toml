@@ -1,6 +1,6 @@
 [package]
 name = "integration"
-authors = ["The Affidaty Team <trinci@affidaty.io>"]
+authors = ["The Trinci Team <trinci@affidaty.io>"]
 version = "0.1.0"
 edition = "2018"
 
