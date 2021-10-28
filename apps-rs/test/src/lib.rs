@@ -23,14 +23,12 @@
 //!  - Default smart contract functionalities.
 //!  - Trigger exceptional conditions.
 //!
-use hashers::null::NullHasher;
 use random::Source;
 use serde_derive::{Deserialize, Serialize};
-use std::hash::BuildHasherDefault;
+use std::collections::HashMap;
 use std::time::SystemTime;
 use std::{
     alloc::{alloc, Layout},
-    collections::HashMap as StdHashMap,
     convert::TryInto,
     mem::align_of,
 };
@@ -38,9 +36,6 @@ use trinci_sdk::{
     rmp_deserialize, rmp_serialize, tai::AssetTransferArgs, value, AppContext, PackedValue, Value,
     WasmError, WasmResult,
 };
-
-type HashMap<K, V> = StdHashMap<K, V, BuildHasherDefault<NullHasher>>;
-
 trinci_sdk::app_export!(
     // Input and output serialization.
     echo_generic,
@@ -244,7 +239,7 @@ fn null_pointer_indirection(_ctx: AppContext, _args: Value) -> WasmResult<Value>
 fn get_random_sequence(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
     trinci_sdk::log("Called method `random_sequence`");
 
-    let mut source = random::default().seed([0, 1]);
+    let mut source = random::default();
     let vector = source.iter().take(3).collect::<Vec<u64>>();
 
     let buf = trinci_sdk::rmp_serialize(&vector)?;
@@ -430,46 +425,5 @@ mod tests {
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
 
         assert_eq!(err.to_string(), "not enough funds");
-    }
-
-    #[test]
-    fn test_random_sequence_determinism() {
-        // random_sequence
-        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
-        let args = PackedValue::default();
-
-        let res = not_wasm::call_wrap(get_random_sequence, ctx, args).unwrap();
-
-        let rnd_vector: Vec<u64> = trinci_sdk::rmp_deserialize(&res.0).unwrap();
-
-        assert_eq!(rnd_vector, vec![2, 8388673, 8388673]);
-    }
-
-    #[test]
-    fn test_return_hashmap_determinism() {
-        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
-        let args = PackedValue::default();
-
-        let hashmap = not_wasm::call_wrap(get_hashmap, ctx, args).unwrap();
-
-        let mut expected: HashMap<&str, u64> = HashMap::default();
-
-        expected.insert("val1", 123);
-        expected.insert("val2", 456);
-        expected.insert("val3", 789);
-
-        let buf = trinci_sdk::rmp_serialize(&expected).unwrap();
-
-        let expected = PackedValue(buf);
-
-        assert_eq!(hashmap.0, expected.0);
-    }
-
-    #[test]
-    fn test_get_time() {
-        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
-        let args = PackedValue::default();
-
-        let _time = not_wasm::call_wrap(get_time, ctx, args).unwrap();
     }
 }

@@ -452,14 +452,14 @@ fn check_rxs(rxs: Vec<Receipt>) {
 
     assert_eq!(
         &rxs[14].returns,
-        &vec![147, 2, 206, 0, 128, 0, 65, 206, 0, 128, 0, 65]
+        &vec![147, 206, 21, 0, 11, 52, 206, 76, 128, 38, 222, 207, 0, 10, 128, 0, 76, 130, 188, 60]
     );
     // 15. random_sequence,
     assert!(rxs[15].success);
 
     assert_eq!(
         &rxs[15].returns,
-        &vec![147, 2, 206, 0, 128, 0, 65, 206, 0, 128, 0, 65]
+        &vec![147, 206, 21, 0, 11, 52, 206, 76, 128, 38, 222, 207, 0, 10, 128, 0, 76, 130, 188, 60]
     );
     // 16. return_hashmap,
     assert!(rxs[16].success);
@@ -483,7 +483,7 @@ fn check_rxs(rxs: Vec<Receipt>) {
 }
 
 #[test]
-fn crypto_test() {
+fn test_contract() {
     // Instance the application.
     let mut app = TestApp::default();
 
