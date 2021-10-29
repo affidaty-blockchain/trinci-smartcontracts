@@ -7,8 +7,8 @@ const HashList = require('./include/hashlist').HashList;
 const hashList = new HashList();
 
 // CONFIGS START
-const nodeUrl = 'http://127.0.0.1:8000';
-const network = 'nightly';
+const nodeUrl = 'http://localhost:8000';
+const network = 'skynet';
 
 const fileList = [
     '/home/alex/git-projects/trinci-smartcontracts/apps-as/arya/build/arya.wasm',

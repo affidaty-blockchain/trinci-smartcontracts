@@ -355,7 +355,6 @@ async function verifyData() {
     let personalData = {
         name: 'John',
         surname: 'Doe',
-
     }
 
     let myAcc = new t2lib.Account();
@@ -437,8 +436,8 @@ async function setDelegation2() {
     d.network = 'nightly';
     d.target = cryptoAcc.accountId;
     d.capabilities = {
-        '*': true,
-        method1: false,
+        '*': false,
+        method1: true,
     }
     await d.sign(certifierAcc2.keyPair.privateKey);
     let ticket = await c.prepareAndSubmitTx(
@@ -545,7 +544,7 @@ async function verifyCapability() {
             delegate: userAcc.accountId,
             delegator: certifierAcc.accountId,
             target: cryptoAcc.accountId,
-            method: 'method1'
+            method: 'method',
             // '*': true,
             // method1: false,
         },
@@ -567,14 +566,14 @@ async function verifyCapability() {
 async function main() {
     await init();
     await initArya();
-    // await setData();
-    // await updateData();
-    // await removeData();
-    // await setCert();
-    // await updateCert();
-    // await setCert2();
-    // await removeCert();
-    // await verifyData();
+    await setData();
+    await updateData();
+    await removeData();
+    await setCert();
+    await updateCert();
+    await setCert2();
+    await removeCert();
+    await verifyData();
     await setDelegation();
     await setDelegation2();
     await removeDelegation();
