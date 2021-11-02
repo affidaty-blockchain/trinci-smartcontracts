@@ -73,6 +73,7 @@ async function initArya() {
         console.log(`SUCCESS: ${receipt2.success}`);
         if (receipt2.success) {
             console.log(`RESULT : [${Buffer.from(receipt2.result).toString('hex')}]`);
+            console.log(t2lib.Utils.bytesToObject((await c.accountData(aryaAcc.accountId, ['*'])).requestedData[0]));
         } else {
             console.log(`ERROR : ${Buffer.from(receipt2.result).toString()}`);
         }
@@ -176,7 +177,7 @@ async function setCert() {
     title('setCert');
     testData = {
         name: 'John',
-        surname: 'Dow',
+        surname: 'Doe',
         sex: 'male',
         tel: '1634829548',
         email: 'john.doe@mail.net',
@@ -185,6 +186,7 @@ async function setCert() {
     cert.create(['name', 'surname']);
     cert.target = userAcc.accountId;
     await cert.sign(certifierAcc.keyPair.privateKey);
+    console.log(Buffer.from(await cert.toBytes()).toString('hex'));
     let ticket = await c.prepareAndSubmitTx(
         aryaAcc.accountId,
         '',
@@ -398,6 +400,7 @@ async function setDelegation() {
         method1: false,
     }
     await d.sign(certifierAcc.keyPair.privateKey);
+    console.log(Buffer.from(await d.toBytes()).toString('hex'));
     let ticket = await c.prepareAndSubmitTx(
         aryaAcc.accountId,
         '',
