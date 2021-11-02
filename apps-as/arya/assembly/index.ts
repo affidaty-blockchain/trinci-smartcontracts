@@ -349,7 +349,6 @@ function verifyData(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
 
 // BEGIN - DELEGATION MANAGEMENT
 function setDelegation(ctx: Types.AppContext, argsU8: u8[]): Types.TCombinedPtr {
-    HostFunctions.log('===============================');
     let success = false;
     let resultBytes: u8[] = [0xc0];
     if (argsU8.length > 0) {
