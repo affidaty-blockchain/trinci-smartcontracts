@@ -40,7 +40,7 @@ import {
 } from './msgpack';
 import { retCodes } from './retcodes';
 
-export function my_alloc(size: i32): i32 {
+export function alloc(size: i32): i32 {
     return heap.alloc(size) as i32;
 }
 
