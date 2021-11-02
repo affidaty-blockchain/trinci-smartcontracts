@@ -1,10 +1,10 @@
 #!/bin/env node
-const t2lib = require('@developer2/t2-lib');
+const t2lib = require('@affidaty/t2-lib');
 const HashList = require('./include/hashlist').HashList;
 
 // CONFIGS START
 const nodeUrl = 'http://localhost:8000/';
-const network = 'nightly';
+const network = 'skynet';
 // CONFIGS END
 
 const c = new t2lib.Client(nodeUrl, network);
@@ -391,7 +391,7 @@ async function setDelegation() {
     console.log(cryptoAcc.accountId);
     let d = new t2lib.Delegation();
     d.delegate = userAcc.accountId;
-    d.network = 'nightly';
+    d.network = network;
     d.target = cryptoAcc.accountId;
     d.capabilities = {
         '*': true,
@@ -433,7 +433,7 @@ async function setDelegation2() {
     console.log(cryptoAcc.accountId);
     let d = new t2lib.Delegation();
     d.delegate = userAcc.accountId;
-    d.network = 'nightly';
+    d.network = network;
     d.target = cryptoAcc.accountId;
     d.capabilities = {
         '*': false,

@@ -1,7 +1,7 @@
 #!/bin/env node
 
 const fs = require('fs');
-const t2lib = require('@developer2/t2-lib');
+const t2lib = require('@affidaty/t2-lib');
 const fileFromPath = require('./include/hashlist').fileFromPath;
 const HashList = require('./include/hashlist').HashList;
 const hashList = new HashList();
