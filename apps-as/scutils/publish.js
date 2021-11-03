@@ -11,8 +11,8 @@ const nodeUrl = 'http://localhost:8000';
 const network = 'skynet';
 
 const fileList = [
-    '/home/alex/git-projects/trinci-smartcontracts/apps-as/arya/build/arya.wasm',
-    '/home/alex/git-projects/trinci-smartcontracts/apps-as/arya/build/crypto.wasm',
+    './build/crypto.wasm',
+    './build/arya.wasm'
 ]
 // CONFIGS END
 
