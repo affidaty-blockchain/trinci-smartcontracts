@@ -26,6 +26,14 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
+0.2.1 - 13-10-2021
+------------------
+
+Changed 
+* replaced HashMap with BTreeMap
+* fixed penalty_asset handling
+
+
 0.2.0 - 18-09-2021
 ------------------
 

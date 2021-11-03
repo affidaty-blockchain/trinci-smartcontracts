@@ -2,9 +2,7 @@ Vote
 ===
 ## Features
 
-- Provides a voting system in blockchain
-- The anonymity of the vote is guaranteed by the use of blindly signed tokens
-
+- Provides a simple voting system in blockchain
 
 ## Methods
 
@@ -19,10 +17,7 @@ Vote
       "description": {
           "en": "Vote to elect the President and to choose the spring break "
       },
-      "start": 1619517600,
-      "end": 1619776800,
       "status": "OPEN",
-      "anonymous": true,
       "owner": SUBMITTER_ACCOUNT_ID,
       "rules": {
           "min": 1,
@@ -47,18 +42,6 @@ Vote
           },
           ...
       ],
-      "polling_stations": [
-          {
-              "id": "W1",
-              "uri": "URI1",
-              "salt": bytes,
-              "pk_rsa": {
-                  "e": bytes,
-                  "n": bytes,    // (e.g. 256 bytes for 2048 bit RSA key)
-              }
-          },
-          ...
-      ],
   }
   ```
 
@@ -72,18 +55,15 @@ Vote
 
 ### `add_vote`
 
-- Checks if the token is valid
-- Checks if the token has not already been burned
-- Checks if the voter id "belongs" to the current polling station
+- Checks if the caller has already been voted
 - Checks if the voter id is the transaction submitter
 - Checks if the polling station status is "OPEN"
 - Checks the vote consistency
 - Adds the user vote to the option choose in the voting results
-- Burns the voter token to forbid a second votation with the same token
+- Burns the voter id to forbid a second votation
 
   ```json
   args: {
-      "token": bytes,
       "answers":[
           {
               "id": string,
@@ -116,10 +96,7 @@ Vote
       "description": {
           "en": "Vote to elect the President and to choose the spring break "
       },
-      "anonymous": true,
       "owner": SUBMITTER_ACCOUNT_ID,
-      "start": 1619517600,
-      "end": 1619776800,
       "status": "OPEN",
       "rules": {
           "min": 1,
@@ -141,18 +118,6 @@ Vote
                   },
                   ...
               ]
-          },
-          ...
-      ],
-      "polling_stations": [
-          {
-              "id": "W1",
-              "uri": "URI1",
-              "salt": bytes,
-              "pk_rsa": {
-                  "e": bytes,
-                  "n": bytes,    // (e.g. 256 bytes for 2048 bit RSA key)
-              }
           },
           ...
       ],
@@ -180,4 +145,3 @@ Vote
   ...
   ]
   ```
-

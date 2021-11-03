@@ -129,7 +129,7 @@ pub(crate) mod tests {
     #[test]
     fn verify_args_serialize() {
         let pk = PublicKey {
-            curve: CurveId::Secp384R1,
+            curve_id: CurveId::Secp384R1,
             value: vec![1, 2, 3],
         };
 
@@ -147,7 +147,7 @@ pub(crate) mod tests {
     #[test]
     fn verify_args_deserialize() {
         let pk = PublicKey {
-            curve: CurveId::Secp384R1,
+            curve_id: CurveId::Secp384R1,
             value: vec![1, 2, 3],
         };
 

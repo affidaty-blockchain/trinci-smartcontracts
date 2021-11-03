@@ -1,6 +1,6 @@
 [package]
 name = "asset"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["The Affidaty Team <trinci@affidaty.io>"]
 edition = "2018"
 description = "Basic TAI asset"
@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 trinci-sdk = { git = "https://github.com/affidaty-blockchain/trinci-sdk-rust" }
-serde = { version = "1.0.126", features = [ "derive" ] }
+serde = { version = "1.0.126", features = ["derive"] }
 
 [dev-dependencies]
 hex = "0.4.3"
