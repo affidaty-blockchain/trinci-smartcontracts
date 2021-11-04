@@ -22,24 +22,61 @@
 //!
 
 use integration::{
-    common::{
-        self, AccountInfo, PUB_KEY1, PUB_KEY2, PUB_KEY3, PUB_KEY4, PUB_KEY5, PUB_KEY6, PVT_KEY1,
-        PVT_KEY2, PVT_KEY3, PVT_KEY4, PVT_KEY5, PVT_KEY6,
-    },
+    common::{self},
     TestApp,
 };
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_value::Value;
 use std::collections::{BTreeMap, HashMap};
-use trinci_core::crypto::ecdsa::CurveId;
-use trinci_core::crypto::ecdsa::KeyPair;
+use trinci_core::crypto::ecdsa::{self, KeyPair};
 use trinci_core::{
     base::serialize::rmp_serialize,
     crypto::{ecdsa::PublicKey as EcdsaPublicKey, sign::PublicKey, Hash},
     Receipt, Transaction,
 };
-use trinci_sdk::value;
+use trinci_core::{crypto::ecdsa::CurveId, TransactionData};
+use trinci_sdk::{rmp_serialize_named, value};
+
+// TMP Using keypair instead pub/pvt keys for account
+fn kp_create_test_tx_data(
+    id: &str,
+    public_key: PublicKey,
+    contract_hash: Hash,
+    method: &str,
+    args: impl Serialize,
+) -> TransactionData {
+    static mut MYNONCE: u64 = 0;
+    let args = rmp_serialize_named(&args).unwrap();
+
+    let nonce = unsafe {
+        MYNONCE += 1;
+        MYNONCE.to_be_bytes().to_vec()
+    };
+    TransactionData {
+        account: id.to_string(),
+        nonce,
+        network: "skynet".to_string(),
+        contract: Some(contract_hash),
+        method: method.to_string(),
+        caller: public_key,
+        args,
+    }
+}
+fn kp_create_test_tx(
+    id: &str,
+    ecdsa_keypair: ecdsa::KeyPair,
+    target: Hash,
+    method: &str,
+    args: impl Serialize,
+) -> Transaction {
+    let keypair = trinci_core::crypto::sign::KeyPair::Ecdsa(ecdsa_keypair);
+    let public_key = keypair.public_key();
+    let data = kp_create_test_tx_data(id, public_key, target, method, args);
+
+    let signature = data.sign(&keypair).unwrap();
+    Transaction { data, signature }
+}
 
 // Hash Algorithms available
 #[derive(Serialize, Deserialize)]
@@ -61,15 +98,46 @@ const CERTIFIER_2_ALIAS: &str = "Certifier_2";
 const USER_ALIAS: &str = "User";
 const DELEGATE_ALIAS: &str = "Delegate";
 
+const ARYA_PKCS8: &str = "";
+const CRYPTO_PKCS8: &str = "";
+const CERTIFIER_1_PKCS8: &str = "";
+const CERTIFIER_2_PKCS8: &str = "";
+const USER_PKCS8: &str = "";
+const DELEGATE_PKCS8: &str = "";
+
 lazy_static! {
-    static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
+    static ref KEYPAIRS_INFO: HashMap<&'static str, KeyPair> = {
         let mut map = HashMap::new();
-        map.insert(ARYA_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1));
-        map.insert(CRYPTO_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2));
-        map.insert(CERTIFIER_1_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3));
-        map.insert(CERTIFIER_2_ALIAS, AccountInfo::new(PUB_KEY4, PVT_KEY4));
-        map.insert(USER_ALIAS, AccountInfo::new(PUB_KEY5, PVT_KEY5));
-        map.insert(DELEGATE_ALIAS, AccountInfo::new(PUB_KEY6, PVT_KEY6));
+        map.insert(
+            ARYA_ALIAS,
+            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(ARYA_PKCS8).unwrap())
+                .unwrap(),
+        );
+        map.insert(
+            CRYPTO_ALIAS,
+            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(CRYPTO_PKCS8).unwrap())
+                .unwrap(),
+        );
+        map.insert(
+            CERTIFIER_1_ALIAS,
+            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(CERTIFIER_1_PKCS8).unwrap())
+                .unwrap(),
+        );
+        map.insert(
+            CERTIFIER_2_ALIAS,
+            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(CERTIFIER_2_PKCS8).unwrap())
+                .unwrap(),
+        );
+        map.insert(
+            USER_ALIAS,
+            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(USER_PKCS8).unwrap())
+                .unwrap(),
+        );
+        map.insert(
+            DELEGATE_ALIAS,
+            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(DELEGATE_PKCS8).unwrap())
+                .unwrap(),
+        );
         map
     };
 }
@@ -83,16 +151,15 @@ pub struct HashArgs<'a> {
     pub data: &'a [u8],
 }
 
-fn crypto_hash_tx(owner_info: &AccountInfo, user_info: &AccountInfo) -> Transaction {
+fn crypto_hash_tx(owner_info: &KeyPair, user_info: &KeyPair) -> Transaction {
     let args = HashArgs {
         algorithm: HashAlgorithm::Sha256,
         data: &[1, 2, 3],
     };
 
-    common::create_test_tx(
-        &owner_info.id,
-        &user_info.pub_key,
-        &user_info.pvt_key,
+    kp_create_test_tx(
+        &owner_info.public_key().to_account_id(),
+        *user_info,
         *CRYPTO_APP_HASH,
         "hash",
         args,
@@ -116,13 +183,12 @@ fn create_update_profile_data() -> Value {
     })
 }
 
-fn arya_init_tx(arya_info: &AccountInfo, crypto_info: &AccountInfo) -> Transaction {
-    let args = value! ({"crypto": crypto_info.id});
+fn arya_init_tx(arya_info: &KeyPair, crypto_info: &KeyPair) -> Transaction {
+    let args = value! ({"crypto": crypto_info.public_key().to_account_id()});
 
-    common::create_test_tx(
-        &arya_info.id,
-        &arya_info.pub_key,
-        &arya_info.pvt_key,
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        *arya_info,
         *ARYA_APP_HASH,
         "init",
         args,
@@ -130,30 +196,25 @@ fn arya_init_tx(arya_info: &AccountInfo, crypto_info: &AccountInfo) -> Transacti
 }
 
 fn arya_set_profile_data_tx(
-    arya_info: &AccountInfo,
-    target_account: &AccountInfo,
+    arya_info: &KeyPair,
+    target_account: &KeyPair,
     args: Value,
 ) -> Transaction {
-    common::create_test_tx(
-        &arya_info.id,
-        &target_account.pub_key,
-        &target_account.pvt_key,
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        *target_account,
         *ARYA_APP_HASH,
         "set_profile_data",
         args,
     )
 }
 
-fn arya_remove_profile_data_tx(
-    arya_info: &AccountInfo,
-    target_account: &AccountInfo,
-) -> Transaction {
+fn arya_remove_profile_data_tx(arya_info: &KeyPair, target_account: &KeyPair) -> Transaction {
     let args = value!(vec!["testfield"]);
 
-    common::create_test_tx(
-        &arya_info.id,
-        &target_account.pub_key,
-        &target_account.pvt_key,
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        *target_account,
         *ARYA_APP_HASH,
         "remove_profile_data",
         args,
@@ -188,11 +249,10 @@ struct SetDelegationArgs<'a> {
 }
 
 fn arya_set_delegation_tx(
-    arya_info: &AccountInfo,
-    delegate_info: &AccountInfo,
-    delegator_info: &AccountInfo,
-    delegator_kp: KeyPair,
-    target_account: &AccountInfo,
+    arya_info: &KeyPair,
+    delegate_info: &KeyPair,
+    delegator_info: &KeyPair,
+    target_account: &KeyPair,
 ) -> Transaction {
     let mut capabilities = BTreeMap::<&str, bool>::new();
     capabilities.insert("*", true);
@@ -200,21 +260,21 @@ fn arya_set_delegation_tx(
 
     let delegator = PublicKey::Ecdsa(EcdsaPublicKey {
         curve_id: CurveId::Secp384R1,
-        value: delegator_kp.public_key().value,
+        value: delegator_info.public_key().value,
     });
 
     let data = DelegationData {
-        delegate: &delegate_info.id,
+        delegate: &delegate_info.public_key().to_account_id(),
         delegator: delegator.clone(),
         network: "skynet",
-        target: &target_account.id,
+        target: &target_account.public_key().to_account_id(),
         expiration: 123u64,
         capabilities: capabilities.clone(),
     };
 
     let data_to_sign = rmp_serialize(&data).unwrap();
 
-    let sign = delegator_kp.sign(&data_to_sign).unwrap();
+    let sign = delegator_info.sign(&data_to_sign).unwrap();
 
     let delegation = Delegation {
         data,
@@ -228,10 +288,9 @@ fn arya_set_delegation_tx(
         delegation: &delegation,
     };
 
-    common::create_test_tx(
-        &arya_info.id,
-        &delegator_info.pub_key,
-        &delegator_info.pvt_key,
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        *delegator_info,
         *ARYA_APP_HASH,
         "set_delegation",
         args,
@@ -239,19 +298,18 @@ fn arya_set_delegation_tx(
 }
 
 fn arya_remove_delegation_tx(
-    arya_info: &AccountInfo,
-    delegate_info: &AccountInfo,
-    delegator_info: &AccountInfo,
+    arya_info: &KeyPair,
+    delegate_info: &KeyPair,
+    delegator_info: &KeyPair,
 ) -> Transaction {
-    let args = value!({ "delegate": delegate_info.id,
-        "delegator": delegator_info.id,
+    let args = value!({ "delegate": delegate_info.public_key().to_account_id(),
+        "delegator": delegator_info.public_key().to_account_id(),
         "targets": vec!["*"],
     });
 
-    common::create_test_tx(
-        &arya_info.id,
-        &delegate_info.pub_key,
-        &delegate_info.pvt_key,
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        *delegate_info,
         *ARYA_APP_HASH,
         "remove_delegation",
         args,
@@ -259,23 +317,22 @@ fn arya_remove_delegation_tx(
 }
 
 fn arya_verify_capabilities_tx(
-    arya_info: &AccountInfo,
-    delegate_info: &AccountInfo,
-    delegator_info: &AccountInfo,
-    target_info: &AccountInfo,
+    arya_info: &KeyPair,
+    delegate_info: &KeyPair,
+    delegator_info: &KeyPair,
+    target_info: &KeyPair,
     method: &str,
 ) -> Transaction {
     let args = value!({
-        "delegate": delegate_info.id,
-        "delegator": delegator_info.id,
-        "target": target_info.id,
+        "delegate": delegate_info.public_key().to_account_id(),
+        "delegator": delegator_info.public_key().to_account_id(),
+        "target": target_info.public_key().to_account_id(),
         "method": method,
     });
 
-    common::create_test_tx(
-        &arya_info.id,
-        &target_info.pub_key,
-        &target_info.pvt_key,
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        *target_info,
         *ARYA_APP_HASH,
         "verify_capability",
         args,
@@ -283,25 +340,12 @@ fn arya_verify_capabilities_tx(
 }
 
 fn create_txs() -> Vec<Transaction> {
-    let arya_info = ACCOUNTS_INFO.get(ARYA_ALIAS).unwrap();
-    let crypto_info = ACCOUNTS_INFO.get(CRYPTO_ALIAS).unwrap();
-    let target_info = ACCOUNTS_INFO.get(USER_ALIAS).unwrap();
-    let certifier_1_info = ACCOUNTS_INFO.get(CERTIFIER_1_ALIAS).unwrap();
-    let certifier_2_info = ACCOUNTS_INFO.get(CERTIFIER_2_ALIAS).unwrap();
-    let delegate_info = ACCOUNTS_INFO.get(DELEGATE_ALIAS).unwrap();
-
-    let certifier_1_kp = KeyPair::new(
-        CurveId::Secp384R1,
-        &hex::decode(&PVT_KEY3).unwrap(),
-        &hex::decode(&PUB_KEY3).unwrap(),
-    )
-    .unwrap();
-    let certifier_2_kp = KeyPair::new(
-        CurveId::Secp384R1,
-        &hex::decode(&PVT_KEY4).unwrap(),
-        &hex::decode(&PUB_KEY4).unwrap(),
-    )
-    .unwrap();
+    let arya_info = KEYPAIRS_INFO.get(ARYA_ALIAS).unwrap();
+    let crypto_info = KEYPAIRS_INFO.get(CRYPTO_ALIAS).unwrap();
+    let target_info = KEYPAIRS_INFO.get(USER_ALIAS).unwrap();
+    let certifier_1_info = KEYPAIRS_INFO.get(CERTIFIER_1_ALIAS).unwrap();
+    let certifier_2_info = KEYPAIRS_INFO.get(CERTIFIER_2_ALIAS).unwrap();
+    let delegate_info = KEYPAIRS_INFO.get(DELEGATE_ALIAS).unwrap();
 
     vec![
         // 0. Crypto Hash to initializate crypto contract in account
@@ -315,21 +359,9 @@ fn create_txs() -> Vec<Transaction> {
         // 4. remove profile data
         arya_remove_profile_data_tx(arya_info, target_info),
         // 5. set delegation 1
-        arya_set_delegation_tx(
-            arya_info,
-            delegate_info,
-            certifier_1_info,
-            certifier_1_kp,
-            target_info,
-        ),
+        arya_set_delegation_tx(arya_info, delegate_info, certifier_1_info, target_info),
         // 6. set delegation 2
-        arya_set_delegation_tx(
-            arya_info,
-            delegate_info,
-            certifier_2_info,
-            certifier_2_kp,
-            target_info,
-        ),
+        arya_set_delegation_tx(arya_info, delegate_info, certifier_2_info, target_info),
         // 7. remove delegation 2
         arya_remove_delegation_tx(arya_info, delegate_info, certifier_2_info),
         // 8. verify delegation 1
