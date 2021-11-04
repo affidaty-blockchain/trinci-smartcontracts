@@ -18,6 +18,7 @@
 //! 4rya contract integration tests
 //!
 //! // FIXME // TODO  Add more tests with failure situations
+//! // FIXME // TODO  Add certificate set (trough a signed HEX tx) and verify
 //!
 
 use integration::{
@@ -30,19 +31,15 @@ use integration::{
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_value::Value;
-use trinci_sdk::value;
-
 use std::collections::{BTreeMap, HashMap};
+use trinci_core::crypto::ecdsa::CurveId;
 use trinci_core::crypto::ecdsa::KeyPair;
 use trinci_core::{
     base::serialize::rmp_serialize,
-    crypto::{
-        ecdsa::{CurveId, PublicKey as EcdsaPublicKey},
-        sign::PublicKey,
-        Hash,
-    },
+    crypto::{ecdsa::PublicKey as EcdsaPublicKey, sign::PublicKey, Hash},
     Receipt, Transaction,
 };
+use trinci_sdk::value;
 
 // Hash Algorithms available
 #[derive(Serialize, Deserialize)]
@@ -159,129 +156,6 @@ fn arya_remove_profile_data_tx(
         &target_account.pvt_key,
         *ARYA_APP_HASH,
         "remove_profile_data",
-        args,
-    )
-}
-
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, PartialEq, Clone))]
-pub struct SetCertArgs<'a> {
-    pub key: &'a str,
-    #[serde(with = "serde_bytes")]
-    pub certificate: &'a [u8],
-}
-
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, PartialEq, Clone))]
-pub struct Certificate<'a> {
-    data: CertificateData<'a>,
-    #[serde(with = "serde_bytes")]
-    pub signature: &'a [u8],
-    // #[serde(with = "serde_bytes")]
-    pub multiproof: Vec<&'a [u8]>,
-}
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, PartialEq, Clone))]
-pub struct CertificateData<'a> {
-    target: &'a str,
-    fields: Vec<&'a str>,
-    #[serde(with = "serde_bytes")]
-    pub salt: &'a [u8],
-    #[serde(with = "serde_bytes")]
-    pub root: &'a [u8],
-    certifier: PublicKey,
-}
-
-fn arya_set_certificate_tx(
-    arya_info: &AccountInfo,
-    certifier_kp: &KeyPair,
-    target_account: &AccountInfo,
-) -> Transaction {
-    let certifier = PublicKey::Ecdsa(EcdsaPublicKey {
-        curve_id: CurveId::Secp384R1,
-        value: certifier_kp.public_key().value,
-    });
-
-    let certificated_data = CertificateData {
-        target: &target_account.id,
-        fields: vec!["name", "surname", "sex", "tel", "email"],
-        salt: &[
-            205u8, 105, 241, 125, 32, 198, 247, 56, 76, 220, 110, 242, 251, 48, 145, 9, 15, 211,
-            208, 205, 200, 42, 32, 83, 87, 7, 234, 109, 58, 193, 224, 239,
-        ],
-        root: &[
-            238, 42, 127, 230, 79, 120, 133, 124, 200, 183, 0, 166, 120, 83, 197, 100, 101, 228,
-            65, 44, 69, 160, 237, 78, 139, 20, 67, 252, 243, 224, 98, 3,
-        ],
-        certifier,
-    };
-
-    let certified_data_buf = rmp_serialize(&certificated_data).unwrap();
-    let sign = certifier_kp.sign(&certified_data_buf).unwrap();
-
-    let certificate = Certificate {
-        data: certificated_data,
-        signature: &sign,
-        multiproof: vec![],
-        // multiproof: vec![&vec![], &vec![]],
-    };
-
-    let certificate = rmp_serialize(&certificate).unwrap();
-
-    let args = SetCertArgs {
-        key: "main",
-        certificate: &certificate,
-    };
-
-    common::create_test_tx(
-        &arya_info.id,
-        &target_account.pub_key,
-        &target_account.pvt_key,
-        *ARYA_APP_HASH,
-        "set_certificate",
-        args,
-    )
-}
-
-fn arya_remove_certificate_tx(
-    arya_info: &AccountInfo,
-    certifier_account: &AccountInfo,
-    target_account: &AccountInfo,
-) -> Transaction {
-    let args = value!({
-        "target": target_account.id,
-        "certifier" : certifier_account.id,
-        "keys": vec!["*"]
-
-    });
-
-    common::create_test_tx(
-        &arya_info.id,
-        &target_account.pub_key,
-        &target_account.pvt_key,
-        *ARYA_APP_HASH,
-        "remove_certificate",
-        args,
-    )
-}
-
-fn arya_verify_data_tx(
-    arya_info: &AccountInfo,
-    certifier_account: &AccountInfo,
-    target_account: &AccountInfo,
-) -> Transaction {
-    let args = value!({
-        "target": target_account.id,
-        "certificate" : format!("{}:main", certifier_account.id),
-        "data": create_profile_data()
-    });
-
-    common::create_test_tx(
-        &arya_info.id,
-        &target_account.pub_key,
-        &target_account.pvt_key,
-        *ARYA_APP_HASH,
-        "verify_data",
         args,
     )
 }
@@ -440,17 +314,7 @@ fn create_txs() -> Vec<Transaction> {
         arya_set_profile_data_tx(arya_info, target_info, create_update_profile_data()),
         // 4. remove profile data
         arya_remove_profile_data_tx(arya_info, target_info),
-        // 5. set certificate // FIXME
-        arya_set_certificate_tx(arya_info, &certifier_1_kp, target_info),
-        // 6. remove certificate // FIXME
-        arya_remove_certificate_tx(arya_info, certifier_1_info, target_info),
-        // 7. set certificate from certifier 2 // FIXME
-        arya_set_certificate_tx(arya_info, &certifier_2_kp, target_info),
-        // 8. update certificate. This really does nothing  // FIXME
-        arya_set_certificate_tx(arya_info, &certifier_2_kp, target_info),
-        // 9. verify data // FIXME
-        arya_verify_data_tx(arya_info, certifier_2_info, target_info),
-        // 10. set delegation 1
+        // 5. set delegation 1
         arya_set_delegation_tx(
             arya_info,
             delegate_info,
@@ -458,7 +322,7 @@ fn create_txs() -> Vec<Transaction> {
             certifier_1_kp,
             target_info,
         ),
-        // 11. set delegation 2
+        // 6. set delegation 2
         arya_set_delegation_tx(
             arya_info,
             delegate_info,
@@ -466,9 +330,9 @@ fn create_txs() -> Vec<Transaction> {
             certifier_2_kp,
             target_info,
         ),
-        // 12. remove delegation 2
+        // 7. remove delegation 2
         arya_remove_delegation_tx(arya_info, delegate_info, certifier_2_info),
-        // 13. verify delegation 1
+        // 8. verify delegation 1
         arya_verify_capabilities_tx(
             arya_info,
             delegate_info,
@@ -476,7 +340,7 @@ fn create_txs() -> Vec<Transaction> {
             target_info,
             "other_method",
         ),
-        // 14. verify delegation 1 on `method1` that is forbidden. This shall fail
+        // 9. verify delegation 1 on `method1` that is forbidden. This shall fail
         arya_verify_capabilities_tx(
             arya_info,
             delegate_info,
@@ -490,42 +354,24 @@ fn create_txs() -> Vec<Transaction> {
 fn check_rxs(rxs: Vec<Receipt>) {
     // 0. Crypto Hash to initializate crypto contract in account
     assert!(rxs[0].success);
-
     // 1. init arya.
     assert!(rxs[1].success);
-
     // 2. set profile data
     assert!(rxs[2].success);
-
     // 3. update profile data
     assert!(rxs[3].success);
-
     // 4. remove profile data
     assert!(rxs[4].success);
-
-    // 5. set certificate
+    // 5. set delegation 1
     assert!(rxs[5].success);
-
-    // 6. remove certificate
+    // 6. set delegation 2
     assert!(rxs[6].success);
-
-    // 7. set certificate from certifier 2
+    // 7. remove delegation 2
     assert!(rxs[7].success);
-    // 8. update certificate
+    // 8. verify delegation 1
     assert!(rxs[8].success);
-    // 9. verify data
-    println!("{}", String::from_utf8_lossy(&rxs[9].returns));
-    assert!(rxs[9].success);
-    // 10. set delegation 1
-    assert!(rxs[10].success);
-    // 11. set delegation 2
-    assert!(rxs[11].success);
-    // 12. remove delegation 2
-    assert!(rxs[12].success);
-    // 13. verify delegation 1
-    assert!(rxs[13].success);
-    // 14. verify delegation 1 on method1 that is forbidden. This shall fail
-    assert!(!rxs[14].success);
+    // 9. verify delegation 1 on method1 that is forbidden. This shall fail
+    assert!(!rxs[9].success);
 }
 
 #[test]
@@ -537,13 +383,4 @@ fn arya_test() {
     let txs = create_txs();
     let rxs = app.exec_txs(txs);
     check_rxs(rxs);
-
-    // Checks
-    // let asset_info = ACCOUNTS_INFO.get(ASSET_ALIAS).unwrap();
-    // let escrow_info = ACCOUNTS_INFO.get(ESCROW_ALIAS).unwrap();
-    // let customer_info = ACCOUNTS_INFO.get(CUSTOMER_ALIAS).unwrap();
-
-    // let account = app.account(&escrow_info.id).unwrap();
-    // let asset: Asset = serialize::rmp_deserialize(&account.load_asset(&asset_info.id)).unwrap();
-    // assert_eq!(asset.units, 0);
 }
