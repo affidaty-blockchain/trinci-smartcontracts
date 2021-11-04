@@ -11,8 +11,8 @@ const nodeUrl = 'http://localhost:8000';
 const network = 'skynet';
 
 const fileList = [
-    './build/crypto.wasm',
-    './build/arya.wasm'
+    '../../registry/crypto.wasm',
+    '../../registry/arya.wasm'
 ]
 // CONFIGS END
 
