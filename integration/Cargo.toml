@@ -8,6 +8,7 @@ edition = "2018"
 trinci-core = { git = "https://github.com/affidaty-blockchain/trinci-core", default-features = false, features = [
     "with-rocksdb",
     "with-wasmtime",
+    "tpm2",
 ] }
 trinci-sdk = { git = "https://github.com/affidaty-blockchain/trinci-sdk-rust" }
 env_logger = "0.9.0"

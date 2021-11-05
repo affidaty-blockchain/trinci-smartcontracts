@@ -1,6 +1,6 @@
 [package]
 name = "service"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["The Trinci Team <trinci@affidaty.io>"]
 edition = "2018"
 description = "Basic node service"

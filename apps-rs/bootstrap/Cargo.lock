@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "bootstrap"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "hex",
  "serde",
@@ -231,7 +231,7 @@ dependencies = [
 [[package]]
 name = "trinci-sdk"
 version = "0.1.1"
-source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust#de6fdd5de95b65f6ce45184f575bb81fd363b01c"
+source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust#cc28239c9c10d3b99b5a80c44ca69c8b6ff51d8e"
 dependencies = [
  "bs58",
  "hex",

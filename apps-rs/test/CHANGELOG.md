@@ -32,14 +32,3 @@ Additional labels for pre-release metadata:
 * updated wasm
 
 
-0.1.1 - 13-10-2021
-------------------
-
-Changed
-* replaced collection HashMap with BTreeMap
-
-0.1.0 - 07-09-2021
-------------------
-
-Added
-* `init`, `get_info`, `apply`, `close` methods
