@@ -23,10 +23,16 @@
 //! ### Rules
 //!
 //! 1. Initialization can be performed by anyone.
-//! 2. Minting can be performed only by the asset creator or an authorized account.
-//! 4. Burning can be performed only by the asset creator or an authorized account.
+//! 2. Minting can be performed only by the asset creator or an authorized account
+//!    or by an account with delegation.
+//!    Mint Delegation must be added by the asset owner
+//! 4. Burning can be performed only by the asset creator or an authorized account
+//!    or by an account with delegation.
+//!    Burn Delegation must be added by the asset owner
+//!    Delegation must be added by the asset owner
 //! 5. Funds transfer can be performed only by the asset creator or by the caller
-//!    if is the same of the from args field.
+//!    if is the same of the from args field or by an account with delegation.
+//!    Delegation must be added by the asset owner
 //! 6. Balance and Stats can be called by anyone.
 //!
 //! Note about rule 5. The asset creator is allowed to transfer funds from
@@ -157,13 +163,23 @@ fn mint(ctx: AppContext, args: MintArgs) -> WasmResult<()> {
     let buf = trinci_sdk::load_data(CONFIG_KEY);
     let mut config: AssetConfig = trinci_sdk::rmp_deserialize(&buf)?;
 
-    // TODO add checks on arya
     if (ctx.depth == 0 && ctx.caller != config.creator && !config.authorized.contains(&ctx.caller))
         || (ctx.depth > 0
             && ctx.origin != config.creator
             && !config.authorized.contains(&ctx.origin))
     {
-        return Err(WasmError::new("not authorized"));
+        // Check arya for delegation
+        if config.arya_id.is_empty()
+            || !verify_capability(
+                config.arya_id,
+                ctx.origin,
+                config.creator,
+                ctx.owner,
+                "mint",
+            )
+        {
+            return Err(WasmError::new("not authorized"));
+        }
     }
 
     if config.minted + args.units > config.max_units {
@@ -184,13 +200,23 @@ fn burn(ctx: AppContext, args: BurnArgs) -> WasmResult<()> {
     let buf = trinci_sdk::load_data(CONFIG_KEY);
     let mut config: AssetConfig = trinci_sdk::rmp_deserialize(&buf)?;
 
-    // TODO add checks on arya
     if (ctx.depth == 0 && ctx.caller != config.creator && !config.authorized.contains(&ctx.caller))
         || (ctx.depth > 0
             && ctx.origin != config.creator
             && !config.authorized.contains(&ctx.origin))
     {
-        return Err(WasmError::new("not authorized"));
+        // Check arya for delegation
+        if config.arya_id.is_empty()
+            || !verify_capability(
+                config.arya_id,
+                ctx.origin,
+                config.creator,
+                ctx.owner,
+                "burn",
+            )
+        {
+            return Err(WasmError::new("not authorized"));
+        }
     }
 
     withdraw(args.from, args.units)?;
@@ -304,6 +330,7 @@ mod tests {
     const CONTRACT_ID: &str = "QmContract_h7KYbjFPuHSRk2SPgdXrJWFh5W696HPfxyz";
     const NOT_AUTH_ID: &str = "QmNotAuthorized_jFPuHSRk2SPgdXrJWFh5W696HPfxyz";
     const ARYA_ID: &str = "QmArya_dsfsdfh7KYbjFPuHSRk2SPgdXrJWFh5W696HPdsf";
+    const DELEGATE_ID: &str = "QmDelegate_dfh7KYbjFPuHSRk2SPgdXrJWFh5W696HPdsf";
 
     fn create_init_args() -> InitArgs<'static> {
         InitArgs {
@@ -998,5 +1025,84 @@ mod tests {
         assert_eq!(asset.units, 70);
         let asset: Asset = not_wasm::get_account_asset_gen(DESTINATION_ID, ASSET_ID);
         assert_eq!(asset.units, 30);
+    }
+
+    #[test]
+    fn mint_without_arya_delegation() {
+        let mut ctx = prepare_full_env();
+        ctx.caller = DELEGATE_ID;
+
+        not_wasm::set_contract_method(ARYA_ID, "verify_capability", verify_capability_err);
+
+        let args = MintArgs {
+            to: DESTINATION_ID,
+            units: 30,
+        };
+
+        let err = not_wasm::call_wrap(mint, ctx, args).unwrap_err();
+
+        assert_eq!(err.to_string(), "not authorized");
+    }
+    #[test]
+    fn mint_with_arya_delegation() {
+        let mut ctx = prepare_full_env();
+        ctx.caller = DELEGATE_ID;
+
+        not_wasm::set_contract_method(ARYA_ID, "verify_capability", verify_capability_ok);
+
+        let args = MintArgs {
+            to: DESTINATION_ID,
+            units: 30,
+        };
+
+        not_wasm::call_wrap(mint, ctx, args).unwrap();
+
+        let buf = not_wasm::get_account_data(ASSET_ID, CONFIG_KEY);
+        let config: AssetConfig = trinci_sdk::rmp_deserialize(&buf).unwrap();
+        assert_eq!(config.minted, 130);
+        let asset: Asset = not_wasm::get_account_asset_gen(DESTINATION_ID, ASSET_ID);
+        assert_eq!(asset.units, 30);
+    }
+
+    // TODO Burn with delegation
+
+    #[test]
+    fn burn_without_arya_delegation() {
+        let mut ctx = prepare_full_env();
+        ctx.caller = DELEGATE_ID;
+
+        not_wasm::set_account_asset_gen(DESTINATION_ID, ASSET_ID, Asset::new(100));
+
+        let args = BurnArgs {
+            from: DESTINATION_ID,
+            units: 30,
+        };
+        not_wasm::set_contract_method(ARYA_ID, "verify_capability", verify_capability_err);
+
+        let err = not_wasm::call_wrap(burn, ctx, args).unwrap_err();
+
+        assert_eq!(err.to_string(), "not authorized");
+    }
+
+    #[test]
+    fn burn_with_arya_delegation() {
+        let mut ctx = prepare_full_env();
+        ctx.caller = DELEGATE_ID;
+
+        not_wasm::set_account_asset_gen(DESTINATION_ID, ASSET_ID, Asset::new(100));
+
+        let args = BurnArgs {
+            from: DESTINATION_ID,
+            units: 30,
+        };
+        not_wasm::set_contract_method(ARYA_ID, "verify_capability", verify_capability_ok);
+
+        not_wasm::call_wrap(burn, ctx, args).unwrap();
+
+        let buf = not_wasm::get_account_data(ASSET_ID, CONFIG_KEY);
+        let config: AssetConfig = trinci_sdk::rmp_deserialize(&buf).unwrap();
+        assert_eq!(config.burned, 40);
+        let asset: Asset = not_wasm::get_account_asset_gen(DESTINATION_ID, ASSET_ID);
+        assert_eq!(asset.units, 70);
     }
 }

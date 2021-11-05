@@ -31,3 +31,5 @@ Additional labels for pre-release metadata:
 ------------------
 
 Version derived from Asset 0.1.2 - 13-10-2021
+
+Added: delegation verify on arya contract

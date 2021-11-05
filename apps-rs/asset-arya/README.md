@@ -29,6 +29,7 @@ Basic Asset with Arya
         "name": string,
         "creator": account-id,      // Caller account id
         "authorized": [account-id], // List of authorized account to perform mint and burn methods
+        "arya_id": account-id,      // If not empty checks for delegation in arya account   
         "description": string,
         "url": string,
         "max_units": integer,
@@ -40,7 +41,7 @@ Basic Asset with Arya
 ### `transfer`
 
 -   Performs the transfer of a specific asset by custom rules
--   Can be performed by the account owner or a delegate account from the owner
+-   Can be performed by the account owner or a delegate account from the asset creator
 
     ```json
     args: {
@@ -64,10 +65,9 @@ Basic Asset with Arya
 
 - Creates some asset units and transfer them to the specified account
 - Can be performed only by the asset `creator` or by an `authorized` account.
-  or by a delegate account
-
+  or by a delegate account from the asset creator
 - If the call is from a contract the `origin` signer must be the `creator`
-  or an `authorized` account.
+  or an `authorized` account or a delegate account from the asset creator
 
     ```json
     args: {
@@ -80,9 +80,9 @@ Basic Asset with Arya
 
 - Destroys some asset from the specified account
 - Can be performed only by the asset `creator` or by an `authorized` account.
-  or by a delegate account
+  or by a delegate account from the asset creator
 - If the call is from a contract the `origin` signer must be the `creator`
-  or an `authorized` account.
+  or an `authorized` account or by a delegate account from the asset creator.
 
     ```json
     args: {
