@@ -16,10 +16,6 @@
 // along with TRINCI. If not, see <https://www.gnu.org/licenses/>.
 
 //! 4rya contract integration tests
-//!
-//! // FIXME // TODO  Add more tests with failure situations
-//! // FIXME // TODO  Add certificate set (trough a signed HEX tx) and verify
-//!
 
 use integration::{
     common::{self},
@@ -105,6 +101,9 @@ const CERTIFIER_1_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b8104002
 const CERTIFIER_2_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430caa9e7c1d5e9a6cd702e3f0c4e20adbf70abf318006c7c2369212b38915f466f5151fde7d8498ae031fd31b36f91c18da00706052b81040022a16403620004f426b3fcd49732a87ea836036d3ef68fb352e5d9c54699a8dd2baee44ccfcc017cfe9e8f4cca12037304d8026ae038124fd10cf339e49d4544dc4985ada714a357e2e199c0c84ba005d421f830018f9903bedf31b4653fd67ca53bdb683e63d9";
 const USER_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308c14091733a6a3d64a0467a4b905775aa9844b03c7d7f7791f11879132445a49e748c6b2aa240dc97aca0c4ab90ee841a00706052b81040022a16403620004d482fa861888be6a0ad580a6e64c459e427de0791d93e472b68cd4b281ebf8c544eff24898124d6618757e494cb75864f0e584e57559fa16ccc75f4aa57c549d2b1a252cad8358ae5e4a73f86a84edc778b1d15dc07acf67f70f6cb2f69c062e";
 const DELEGATE_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430faca9932e9679bbd45723963a88fcad2c39fbf2b53868b899e92bf6315cd725a505cd9aeb5fbbd8e85a99eb8c045bb4ca00706052b81040022a164036200041ef7e46cf1a09e0a761d27c85143ae268cc6fd91ae498629937cfe8b9a15b4c564de296305732017ba5509950d3480af40f00bcece98cc80004251abba818ce72807a94d7af5f385650ec7656b820b900df319aab230435fba3f31dba5a8811f";
+
+const CERTIFICATE_1_HEX: &str ="9395d92e516d646e5452474b7147415165576643475a6770316532375a505a66436146617479787463394b764b6e5458783195a5656d61696ca46e616d65a3736578a77375726e616d65a374656cc4206ca9a15e675d9a989f19c885d3b21af08bebdd77a56f6479c064e53db7846ffcc420018bcb4f53a4861043e476b0ba2d47e9d67f30cb5d05e460307b0d46e059c36493a56563647361a9736563703338347231c461048cfc38a74cfce0ed3f85d44fbefe14e20238049215573a59f4232098696679d616258041a176ba9f5188ad45c7a6b45b1352a87ac5f2987fc68b96fa63e432536c506dad03088888d70617152bea5107ba4ade8a69d030fd392000eb1a324038c46017d23b9e96e8bf081e9b53d1bac649e18fa69ac9e9c9cddd7b24604b20e19c12cf6925effaac6a1536349c00ac5573bdda8ee0c7883f7a94654b0fb35fbf9acc5e07118174baff1b6f49fad05d22366bfae860d6443850507d894417a2221a8c93c4203101428eb3bc57f850f965df436adb2cfadaedb6df61f853d4c9b0c5c872d69ec420fda953ec7d8a64e50eb65890f92614df0673c867e997302e4e7a5864f42b1045c4206c7913d95c21aabfd9c74be95d166f47404b6904a22c5dbecbf0584540127247";
+const CERTIFICATE_2_HEX: &str = "9395d92e516d646e5452474b7147415165576643475a6770316532375a505a66436146617479787463394b764b6e5458783195a5656d61696ca46e616d65a3736578a77375726e616d65a374656cc4206126a9c34da0188980f0e94f5e5ccdfe5878fab21614297ab310993bcfbcc263c42036affe4e269782db68bd4df0b8d9431398095276682d6f3780145bbff2d4f03193a56563647361a9736563703338347231c46104f426b3fcd49732a87ea836036d3ef68fb352e5d9c54699a8dd2baee44ccfcc017cfe9e8f4cca12037304d8026ae038124fd10cf339e49d4544dc4985ada714a357e2e199c0c84ba005d421f830018f9903bedf31b4653fd67ca53bdb683e63d9c46049557d652b57f72bb785d4bf1542be7bd3c1012e9e0dee8b4310662bbfd6e06a93e548c2d7fc7af3e46546bed8c108826b51d2f4bfb8cd281ac8987bcffd6d0e934f67ebc851de51bccde2c8f6ceb2c61d062ce761f4899e166e347ef973745593c4204f2915d2137bd6b2bea18bf4151fbc720b03ce5cd4c1b29d6d40e2af1cdfa708c420236c86ffe1a6295e0ab2c683ef76dbedaeeffaff2971c850493fa57e0599471fc420902dd04532ec09aba0a19824941c36e07dccd892a7f1460bea3f70e026073671";
 
 lazy_static! {
     static ref KEYPAIRS_INFO: HashMap<&'static str, KeyPair> = {
@@ -197,7 +196,7 @@ fn crypto_hash_tx(owner_info: &KeyPair, user_info: &KeyPair) -> Transaction {
     )
 }
 
-fn create_profile_data() -> Value {
+fn create_profile_data_bad() -> Value {
     value! ({
             "name": "John",
             "surname": "Dow",
@@ -367,6 +366,91 @@ fn arya_verify_capabilities_tx(
     )
 }
 
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug, PartialEq, Clone))]
+pub struct SetCertArgs<'a> {
+    pub key: &'a str,
+    #[serde(with = "serde_bytes")]
+    pub certificate: &'a [u8],
+}
+
+fn arya_set_certificate_tx(
+    arya_info: &KeyPair,
+    target_account: &KeyPair,
+    certificate_no: u8,
+) -> Transaction {
+    let (key, certificate) = match certificate_no {
+        0 => ("main", hex::decode(CERTIFICATE_1_HEX).unwrap()),
+        1 => ("one", hex::decode(CERTIFICATE_2_HEX).unwrap()),
+        2 => ("two", hex::decode(CERTIFICATE_2_HEX).unwrap()),
+        _ => ("none", vec![1u8, 2, 3]),
+    };
+
+    let args = SetCertArgs {
+        key,
+        certificate: &certificate,
+    };
+
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        target_account,
+        *ARYA_APP_HASH,
+        "set_certificate",
+        args,
+    )
+}
+
+fn arya_remove_certificate_tx(
+    arya_info: &KeyPair,
+    certifier_account: &KeyPair,
+    target_account: &KeyPair,
+) -> Transaction {
+    let args = value!({
+        "target": target_account.public_key().to_account_id(),
+        "certifier" : certifier_account.public_key().to_account_id(),
+        "keys": vec!["*"]
+
+    });
+
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        &target_account,
+        *ARYA_APP_HASH,
+        "remove_certificate",
+        args,
+    )
+}
+
+fn arya_verify_data_tx(
+    arya_info: &KeyPair,
+    certifier_account: &KeyPair,
+    target_account: &KeyPair,
+    good_data: bool,
+) -> Transaction {
+    let name = match good_data {
+        true => "John",
+        false => "Mike",
+    };
+
+    let args = value!({
+        "target": target_account.public_key().to_account_id(),
+        "certificate" : format!("{}:main", certifier_account.public_key().to_account_id()),
+        "data": value!({
+            "name": name,
+            "surname": "Doe",
+            "sex": "male"
+        })
+    });
+
+    kp_create_test_tx(
+        &arya_info.public_key().to_account_id(),
+        &certifier_account,
+        *ARYA_APP_HASH,
+        "verify_data",
+        args,
+    )
+}
+
 fn create_txs() -> Vec<Transaction> {
     let arya_info = KEYPAIRS_INFO.get(ARYA_ALIAS).unwrap();
     let crypto_info = KEYPAIRS_INFO.get(CRYPTO_ALIAS).unwrap();
@@ -381,7 +465,7 @@ fn create_txs() -> Vec<Transaction> {
         // 1. init arya.
         arya_init_tx(arya_info, crypto_info),
         // 2. set profile data
-        arya_set_profile_data_tx(arya_info, target_info, create_profile_data()),
+        arya_set_profile_data_tx(arya_info, target_info, create_profile_data_bad()),
         // 3. update profile data
         arya_set_profile_data_tx(arya_info, target_info, create_update_profile_data()),
         // 4. remove profile data
@@ -408,6 +492,18 @@ fn create_txs() -> Vec<Transaction> {
             target_info,
             "method1",
         ),
+        // 10. set certificate `main` from Certifier 1
+        arya_set_certificate_tx(arya_info, target_info, 0),
+        // 11. set certificate `one` from Certifier 2
+        arya_set_certificate_tx(arya_info, target_info, 1),
+        // 12. set certificate `two` from Certifier 2
+        arya_set_certificate_tx(arya_info, target_info, 2),
+        // 13. remove all certificate from Certifier 2
+        arya_remove_certificate_tx(arya_info, certifier_2_info, target_info),
+        // 14. verify data
+        arya_verify_data_tx(arya_info, certifier_1_info, target_info, true),
+        // 15. verify bad data. This shall fail
+        arya_verify_data_tx(arya_info, certifier_1_info, target_info, false),
     ]
 }
 
@@ -432,6 +528,18 @@ fn check_rxs(rxs: Vec<Receipt>) {
     assert!(rxs[8].success);
     // 9. verify delegation 1 on method1 that is forbidden. This shall fail
     assert!(!rxs[9].success);
+    // 10. set certificate `main` from Certifier 1
+    assert!(rxs[10].success);
+    // 11. set certificate `one` from Certifier 2
+    assert!(rxs[11].success);
+    // 12. set certificate `two` from Certifier 2
+    assert!(rxs[12].success);
+    // 13. remove all certificate from Certifier 2
+    assert!(rxs[13].success);
+    // 14. verify data
+    assert!(rxs[14].success);
+    // 15. verify bad data. This shall fail
+    assert!(!rxs[15].success);
 }
 
 #[test]
