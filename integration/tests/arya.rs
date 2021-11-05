@@ -29,16 +29,16 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_value::Value;
 use std::collections::{BTreeMap, HashMap};
-use trinci_core::crypto::ecdsa::{self, KeyPair};
+use trinci_core::crypto::ecdsa::KeyPair as EcdsaKeyPair;
+use trinci_core::crypto::sign::KeyPair;
 use trinci_core::{
     base::serialize::rmp_serialize,
-    crypto::{ecdsa::PublicKey as EcdsaPublicKey, sign::PublicKey, Hash},
+    crypto::{sign::PublicKey, Hash},
     Receipt, Transaction,
 };
 use trinci_core::{crypto::ecdsa::CurveId, TransactionData};
 use trinci_sdk::{rmp_serialize_named, value};
 
-// TMP Using keypair instead pub/pvt keys for account
 fn kp_create_test_tx_data(
     id: &str,
     public_key: PublicKey,
@@ -65,12 +65,13 @@ fn kp_create_test_tx_data(
 }
 fn kp_create_test_tx(
     id: &str,
-    ecdsa_keypair: ecdsa::KeyPair,
+    keypair: &trinci_core::crypto::sign::KeyPair,
+    // ecdsa_keypair: ecdsa::KeyPair,
     target: Hash,
     method: &str,
     args: impl Serialize,
 ) -> Transaction {
-    let keypair = trinci_core::crypto::sign::KeyPair::Ecdsa(ecdsa_keypair);
+    //let keypair = trinci_core::crypto::sign::KeyPair::Ecdsa(ecdsa_keypair);
     let public_key = keypair.public_key();
     let data = kp_create_test_tx_data(id, public_key, target, method, args);
 
@@ -98,45 +99,75 @@ const CERTIFIER_2_ALIAS: &str = "Certifier_2";
 const USER_ALIAS: &str = "User";
 const DELEGATE_ALIAS: &str = "Delegate";
 
-const ARYA_PKCS8: &str = "";
-const CRYPTO_PKCS8: &str = "";
-const CERTIFIER_1_PKCS8: &str = "";
-const CERTIFIER_2_PKCS8: &str = "";
-const USER_PKCS8: &str = "";
-const DELEGATE_PKCS8: &str = "";
+const CRYPTO_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a4020101043072903f41e56843227c479c012994be571d7bf0cf083cb154a369c4008a8709b04f625ee86f281a4b7e4f445b52aaf043a00706052b81040022a16403620004677ab1f2832bfec85ec98b96854db0091b02421d0871ac56f0ff2388e9aad26c486df10a286fda1b2a6955ec283e601580a39cbbad059b778f3af5d4a5fd6b36a2d16bf66fac5630c4778e0cbc3efe025fb492bcb8245e9781c880314fa8aed4";
+const ARYA_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308054283d0eb1af7b1e8349e5f694208342762fcb0c9386cf1fa87f9985bb73a02cfeddccc26ed6fe15d8da019493537ba00706052b81040022a164036200041174cc62f48c0f105a54255291247617ab7983de0ae08c6a26afb28ce04cd76525fa48e75d7cef1e16e165c500e1aba6beb4c2fdbf2e8f8237c1075cb498c32e00d4ab4c37d8bf3ff4a359c8917519015bddf1038e0105fe928f74b31f4f9185";
+const CERTIFIER_1_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430b0394ba13c3f916137a902f1b5e4ef6e1e2b2c8b7c3ef9a39eac68b6c52a3927b5ad0e0ff3ef00a0c551d3b954738e32a00706052b81040022a164036200048cfc38a74cfce0ed3f85d44fbefe14e20238049215573a59f4232098696679d616258041a176ba9f5188ad45c7a6b45b1352a87ac5f2987fc68b96fa63e432536c506dad03088888d70617152bea5107ba4ade8a69d030fd392000eb1a324038";
+const CERTIFIER_2_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430caa9e7c1d5e9a6cd702e3f0c4e20adbf70abf318006c7c2369212b38915f466f5151fde7d8498ae031fd31b36f91c18da00706052b81040022a16403620004f426b3fcd49732a87ea836036d3ef68fb352e5d9c54699a8dd2baee44ccfcc017cfe9e8f4cca12037304d8026ae038124fd10cf339e49d4544dc4985ada714a357e2e199c0c84ba005d421f830018f9903bedf31b4653fd67ca53bdb683e63d9";
+const USER_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308c14091733a6a3d64a0467a4b905775aa9844b03c7d7f7791f11879132445a49e748c6b2aa240dc97aca0c4ab90ee841a00706052b81040022a16403620004d482fa861888be6a0ad580a6e64c459e427de0791d93e472b68cd4b281ebf8c544eff24898124d6618757e494cb75864f0e584e57559fa16ccc75f4aa57c549d2b1a252cad8358ae5e4a73f86a84edc778b1d15dc07acf67f70f6cb2f69c062e";
+const DELEGATE_PKCS8: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430faca9932e9679bbd45723963a88fcad2c39fbf2b53868b899e92bf6315cd725a505cd9aeb5fbbd8e85a99eb8c045bb4ca00706052b81040022a164036200041ef7e46cf1a09e0a761d27c85143ae268cc6fd91ae498629937cfe8b9a15b4c564de296305732017ba5509950d3480af40f00bcece98cc80004251abba818ce72807a94d7af5f385650ec7656b820b900df319aab230435fba3f31dba5a8811f";
 
 lazy_static! {
     static ref KEYPAIRS_INFO: HashMap<&'static str, KeyPair> = {
         let mut map = HashMap::new();
         map.insert(
             ARYA_ALIAS,
-            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(ARYA_PKCS8).unwrap())
+            KeyPair::Ecdsa(
+                EcdsaKeyPair::from_pkcs8_bytes(
+                    CurveId::Secp384R1,
+                    &hex::decode(ARYA_PKCS8).unwrap(),
+                )
                 .unwrap(),
+            ),
         );
         map.insert(
             CRYPTO_ALIAS,
-            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(CRYPTO_PKCS8).unwrap())
+            KeyPair::Ecdsa(
+                EcdsaKeyPair::from_pkcs8_bytes(
+                    CurveId::Secp384R1,
+                    &hex::decode(CRYPTO_PKCS8).unwrap(),
+                )
                 .unwrap(),
+            ),
         );
         map.insert(
             CERTIFIER_1_ALIAS,
-            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(CERTIFIER_1_PKCS8).unwrap())
+            KeyPair::Ecdsa(
+                EcdsaKeyPair::from_pkcs8_bytes(
+                    CurveId::Secp384R1,
+                    &hex::decode(CERTIFIER_1_PKCS8).unwrap(),
+                )
                 .unwrap(),
+            ),
         );
         map.insert(
             CERTIFIER_2_ALIAS,
-            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(CERTIFIER_2_PKCS8).unwrap())
+            KeyPair::Ecdsa(
+                EcdsaKeyPair::from_pkcs8_bytes(
+                    CurveId::Secp384R1,
+                    &hex::decode(CERTIFIER_2_PKCS8).unwrap(),
+                )
                 .unwrap(),
+            ),
         );
         map.insert(
             USER_ALIAS,
-            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(USER_PKCS8).unwrap())
+            KeyPair::Ecdsa(
+                EcdsaKeyPair::from_pkcs8_bytes(
+                    CurveId::Secp384R1,
+                    &hex::decode(USER_PKCS8).unwrap(),
+                )
                 .unwrap(),
+            ),
         );
         map.insert(
             DELEGATE_ALIAS,
-            KeyPair::from_pkcs8_bytes(CurveId::Secp384R1, &hex::decode(DELEGATE_PKCS8).unwrap())
+            KeyPair::Ecdsa(
+                EcdsaKeyPair::from_pkcs8_bytes(
+                    CurveId::Secp384R1,
+                    &hex::decode(DELEGATE_PKCS8).unwrap(),
+                )
                 .unwrap(),
+            ),
         );
         map
     };
@@ -159,7 +190,7 @@ fn crypto_hash_tx(owner_info: &KeyPair, user_info: &KeyPair) -> Transaction {
 
     kp_create_test_tx(
         &owner_info.public_key().to_account_id(),
-        *user_info,
+        user_info,
         *CRYPTO_APP_HASH,
         "hash",
         args,
@@ -169,7 +200,7 @@ fn crypto_hash_tx(owner_info: &KeyPair, user_info: &KeyPair) -> Transaction {
 fn create_profile_data() -> Value {
     value! ({
             "name": "John",
-            "surname": "Doe",
+            "surname": "Dow",
             "sex": "male",
             "tel": "1634829548",
             "email": "john.doe@mail.net",
@@ -188,7 +219,7 @@ fn arya_init_tx(arya_info: &KeyPair, crypto_info: &KeyPair) -> Transaction {
 
     kp_create_test_tx(
         &arya_info.public_key().to_account_id(),
-        *arya_info,
+        arya_info,
         *ARYA_APP_HASH,
         "init",
         args,
@@ -202,7 +233,7 @@ fn arya_set_profile_data_tx(
 ) -> Transaction {
     kp_create_test_tx(
         &arya_info.public_key().to_account_id(),
-        *target_account,
+        target_account,
         *ARYA_APP_HASH,
         "set_profile_data",
         args,
@@ -214,7 +245,7 @@ fn arya_remove_profile_data_tx(arya_info: &KeyPair, target_account: &KeyPair) ->
 
     kp_create_test_tx(
         &arya_info.public_key().to_account_id(),
-        *target_account,
+        target_account,
         *ARYA_APP_HASH,
         "remove_profile_data",
         args,
@@ -258,10 +289,7 @@ fn arya_set_delegation_tx(
     capabilities.insert("*", true);
     capabilities.insert("method1", false);
 
-    let delegator = PublicKey::Ecdsa(EcdsaPublicKey {
-        curve_id: CurveId::Secp384R1,
-        value: delegator_info.public_key().value,
-    });
+    let delegator = delegator_info.public_key();
 
     let data = DelegationData {
         delegate: &delegate_info.public_key().to_account_id(),
@@ -290,7 +318,7 @@ fn arya_set_delegation_tx(
 
     kp_create_test_tx(
         &arya_info.public_key().to_account_id(),
-        *delegator_info,
+        delegator_info,
         *ARYA_APP_HASH,
         "set_delegation",
         args,
@@ -309,7 +337,7 @@ fn arya_remove_delegation_tx(
 
     kp_create_test_tx(
         &arya_info.public_key().to_account_id(),
-        *delegate_info,
+        delegate_info,
         *ARYA_APP_HASH,
         "remove_delegation",
         args,
@@ -332,7 +360,7 @@ fn arya_verify_capabilities_tx(
 
     kp_create_test_tx(
         &arya_info.public_key().to_account_id(),
-        *target_info,
+        target_info,
         *ARYA_APP_HASH,
         "verify_capability",
         args,
@@ -349,7 +377,7 @@ fn create_txs() -> Vec<Transaction> {
 
     vec![
         // 0. Crypto Hash to initializate crypto contract in account
-        crypto_hash_tx(crypto_info, target_info),
+        crypto_hash_tx(&crypto_info, &target_info),
         // 1. init arya.
         arya_init_tx(arya_info, crypto_info),
         // 2. set profile data
