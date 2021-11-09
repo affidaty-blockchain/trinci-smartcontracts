@@ -26,12 +26,10 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
-0.1.2 - 13-10-2021
+0.1.2 - 05-11-2021
 ------------------
-
-Changed
-* Mint and Burn can be performed by a smart contract call 
-  if the transaction signer is authorized
+* renamed alloc in rust sdk
+* updated wasm
 
 
 0.1.1 - 13-10-2021
