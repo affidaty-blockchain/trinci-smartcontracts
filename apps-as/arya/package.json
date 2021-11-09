@@ -15,7 +15,7 @@
         "as-hmac-sha2": "^1.0.1"
     },
     "devDependencies": {
-        "@affidaty/t2-lib": "^1.5.1",
+        "@affidaty/t2-lib": "^1.6.0",
         "@assemblyscript/loader": "^0.19.11",
         "assemblyscript": "^0.19.11"
     }

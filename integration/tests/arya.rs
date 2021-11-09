@@ -57,6 +57,8 @@ fn kp_create_test_tx_data(
         method: method.to_string(),
         caller: public_key,
         args,
+        schema: "my-cool-schema".to_string(),
+        fuel_limit: 0,
     }
 }
 fn kp_create_test_tx(
