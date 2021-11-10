@@ -221,8 +221,8 @@ fn null_pointer_indirection(_ctx: AppContext, _args: Value) -> WasmResult<Value>
 
 /// Send a notification to the host.
 fn notify(ctx: AppContext, data: Value) -> WasmResult<()> {
-    trinci_sdk::emit_data_mp!(ctx.caller, &data)?;
-    trinci_sdk::emit_data_mp!(ctx.caller, &[1, 2, 3])?;
+    trinci_sdk::emit_data_mp!(ctx.caller, ctx.method, &data)?;
+    trinci_sdk::emit_data_mp!(ctx.caller, ctx.method, &[1, 2, 3])?;
     Ok(())
 }
 
