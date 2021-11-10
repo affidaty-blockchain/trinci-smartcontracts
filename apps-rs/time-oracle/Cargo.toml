@@ -1,0 +1,16 @@
+[package]
+name = "time-oracle"
+version = "0.1.2"
+authors = ["The Affidaty Team <trinci@affidaty.io>"]
+edition = "2021"
+description = "Time oracle"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+trinci-sdk = { git = "https://github.com/affidaty-blockchain/trinci-sdk-rust" }
+serde = { version = "1.0.126", features = ["derive"] }
+
+[dev-dependencies]
+hex = "0.4.3"
