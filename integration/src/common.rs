@@ -60,7 +60,6 @@ pub const PVT_KEY8: &str = "f9a2619f076ca99870bb90b4faf63a9ddedc031b07a1f2ea8230
 
 lazy_static! {
     pub static ref ASSET_APP_HASH: Hash = app_hash("asset.wasm").unwrap();
-    pub static ref SERVICE_APP_HASH: Hash = app_hash("service.wasm").unwrap();
 }
 
 pub struct AccountInfo {

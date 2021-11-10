@@ -44,7 +44,6 @@ trinci_sdk::app_export!(
     nested_call,
     balance,
     transfer,
-    notify,
     // Trigger exceptional conditions.
     divide_by_zero,
     trigger_panic,
@@ -219,13 +218,6 @@ fn null_pointer_indirection(_ctx: AppContext, _args: Value) -> WasmResult<Value>
     Ok(value!(null))
 }
 
-/// Send a notification to the host.
-fn notify(ctx: AppContext, data: Value) -> WasmResult<()> {
-    trinci_sdk::emit_data_mp!(ctx.caller, ctx.method, &data)?;
-    trinci_sdk::emit_data_mp!(ctx.caller, ctx.method, &[1, 2, 3])?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -380,17 +372,5 @@ mod tests {
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
 
         assert_eq!(err.to_string(), "not enough funds");
-    }
-
-    #[test]
-    fn notification() {
-        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
-
-        let args = trinci_sdk::value!({
-            "message": "Hello!",
-        });
-        let res = not_wasm::call_wrap(notify, ctx, args).unwrap();
-
-        assert_eq!(res, ());
     }
 }

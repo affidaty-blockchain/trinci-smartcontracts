@@ -53,4 +53,3 @@ Changed
 
 Added
 * `init`, `get_info`, `apply`, `close` methods
-
