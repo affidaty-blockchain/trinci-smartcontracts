@@ -126,7 +126,7 @@ impl TestApp {
 
     // Execute transactions set and wait for receipts.
     pub fn exec_txs(&mut self, txs: Vec<Transaction>) -> Vec<Receipt> {
-        const MAX_TRIALS: usize = 62;
+        const MAX_TRIALS: usize = 32;
         const RETRY_PERIOD: Duration = Duration::from_secs(3);
 
         let hashes = self.put_transactions(txs);
