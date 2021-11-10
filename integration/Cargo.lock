@@ -253,9 +253,9 @@ dependencies = [
 
 [[package]]
 name = "blocking"
-version = "1.0.2"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5e170dbede1f740736619b776d7251cb1b9095c435c34d8ca9f57fcd2f335e9"
+checksum = "046e47d4b2d391b1f6f8b407b1deb8dee56c1852ccd868becf2710f601b5f427"
 dependencies = [
  "async-channel",
  "async-task",
@@ -291,9 +291,9 @@ checksum = "631ae5198c9be5e753e5cc215e1bd73c2b466a3565173db433f52bb9d3e66dba"
 
 [[package]]
 name = "cc"
-version = "1.0.71"
+version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79c2681d6594606957bbb8631c4b90a7fcaaa72cdb714743a437b156d6a7eedd"
+checksum = "22a9137b95ea06864e018375b72adfb7db6e6f68cfc8df5a04d00288050485ee"
 dependencies = [
  "jobserver",
 ]
@@ -1239,9 +1239,9 @@ checksum = "12295df4f294471248581bc09bef3c38a5e46f1e36d6a37353621a0c6c357e1f"
 
 [[package]]
 name = "polling"
-version = "2.1.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92341d779fa34ea8437ef4d82d440d5e1ce3f3ff7f824aa64424cd481f9a1f25"
+checksum = "685404d509889fade3e86fe3a5803bca2ec09b0c0778d5ada6ec8bf7a8de5259"
 dependencies = [
  "cfg-if",
  "libc",
@@ -1787,7 +1787,7 @@ dependencies = [
 [[package]]
 name = "trinci-core"
 version = "0.2.3-rc1"
-source = "git+https://github.com/affidaty-blockchain/trinci-core#c66ddd7428a57e44d853fd4dd91f5d011f28db84"
+source = "git+https://github.com/affidaty-blockchain/trinci-core#5648338ea7fba54dd9590ef40979b16e5eb049c0"
 dependencies = [
  "async-std",
  "bitflags",
@@ -1808,8 +1808,8 @@ dependencies = [
 
 [[package]]
 name = "trinci-sdk"
-version = "0.1.2"
-source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust#3b7c1877c89a7f5ab9866351019f2ae1f9f6ba59"
+version = "0.1.3"
+source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust#4057a8c699c81e628eca230117f5d61c46ed2146"
 dependencies = [
  "bs58",
  "hex",

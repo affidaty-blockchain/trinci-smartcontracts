@@ -26,18 +26,16 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
-Basic Vote contract
+Storage contract
 
-0.1.1 - 10-11-2021
+0.1.2 - 10-11-2021
 ------------------
 
 * updated trinci sdk
 * rust version 2021
 
 
-0.1.0 - 14-10-2021
+0.1.1 - 05-11-2021
 ------------------
 
-Changed
-* First version derived from vote contract
-
+* first release 

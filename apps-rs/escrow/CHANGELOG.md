@@ -26,6 +26,14 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
+Escrow contract
+
+0.2.4 - 10-11-2021
+------------------
+
+* updated trinci sdk
+* rust version 2021
+
 
 0.2.3 - 06-10-2021
 ------------------

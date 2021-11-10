@@ -26,6 +26,14 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
+Nft contract
+
+0.2.1 - 10-11-2021
+------------------
+
+* updated trinci sdk
+* rust version 2021
+
 
 0.2.0 - 01-09-2021
 ------------------

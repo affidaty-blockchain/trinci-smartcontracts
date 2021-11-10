@@ -1,6 +1,6 @@
 [package]
 name = "dynamic-exchange"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["The Affidaty Team <trinci@affidaty.io>"]
 
 edition = "2018"
