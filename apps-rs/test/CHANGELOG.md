@@ -26,6 +26,15 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
+Test contract
+
+0.2.0 - 10-11-2021
+------------------
+* added notify method to test emit_data host function
+* updated trinci sdk
+* rust version 2021
+
+
 0.1.2 - 05-11-2021
 ------------------
 * renamed alloc in rust sdk

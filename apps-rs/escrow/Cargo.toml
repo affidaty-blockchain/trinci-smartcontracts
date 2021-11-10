@@ -1,9 +1,8 @@
 [package]
 name = "escrow"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["The Affidaty Team <trinci@affidaty.io>"]
-
-edition = "2018"
+edition = "2021"
 description = "Basic escrow"
 
 [lib]
