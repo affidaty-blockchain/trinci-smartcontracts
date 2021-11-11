@@ -30,6 +30,7 @@ Test contract
 
 0.2.0 - 10-11-2021
 ------------------
+* added notify method to test emit_data host function
 * updated trinci sdk
 * rust version 2021
 
