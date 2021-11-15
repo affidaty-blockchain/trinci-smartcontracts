@@ -22,11 +22,13 @@
 //!  - Input and output serialization.
 //!  - Default smart contract functionalities.
 //!  - Trigger exceptional conditions.
-
+//!
+use random::Source;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::time::SystemTime;
 use std::{
     alloc::{alloc, Layout},
-    collections::HashMap,
     convert::TryInto,
     mem::align_of,
 };
@@ -34,7 +36,6 @@ use trinci_sdk::{
     rmp_deserialize, rmp_serialize, tai::AssetTransferArgs, value, AppContext, PackedValue, Value,
     WasmError, WasmResult,
 };
-
 trinci_sdk::app_export!(
     // Input and output serialization.
     echo_generic,
@@ -45,13 +46,19 @@ trinci_sdk::app_export!(
     balance,
     transfer,
     notify,
+    // Utility methods
+    mint,
     // Trigger exceptional conditions.
     divide_by_zero,
     trigger_panic,
     exhaust_memory,
     infinite_recursion,
     infinite_loop,
-    null_pointer_indirection
+    null_pointer_indirection,
+    // Deterministic contract
+    get_random_sequence,
+    get_hashmap,
+    get_time
 );
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -116,6 +123,16 @@ fn balance(ctx: AppContext, _args: PackedValue) -> WasmResult<u64> {
     trinci_sdk::log("Called method `balance`");
     let value = load_my_asset(ctx.caller);
     Ok(value)
+}
+
+/// Mint some `account asset` units on the account
+fn mint(ctx: AppContext, args: u64) -> WasmResult<u64> {
+    trinci_sdk::log("Called method `mint`");
+
+    let value = load_my_asset(ctx.owner);
+    store_my_asset(ctx.owner, value + args);
+
+    Ok(value + args)
 }
 
 /// Call the host function hf_transfer
@@ -190,7 +207,7 @@ fn exhaust_memory(_ctx: AppContext, _args: Value) -> WasmResult<Value> {
 fn infinite_recursion(ctx: AppContext, args: Value) -> WasmResult<Value> {
     if let Value::Bool(first_call) = args {
         if first_call {
-            trinci_sdk::log("Called method `null_pointer_indirection`");
+            trinci_sdk::log("Called method `infinite_recursion`");
         }
         return infinite_recursion(ctx, value!(false));
     }
@@ -226,8 +243,44 @@ fn notify(ctx: AppContext, data: Value) -> WasmResult<()> {
     Ok(())
 }
 
+/// Return a random sequence (shall be deterministic)
+fn get_random_sequence(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
+    trinci_sdk::log("Called method `random_sequence`");
+
+    let mut source = random::default();
+    let vector = source.iter().take(3).collect::<Vec<u64>>();
+
+    let buf = trinci_sdk::rmp_serialize(&vector)?;
+    Ok(PackedValue(buf))
+}
+
+/// Return an hashmap (shall be deterministic)
+fn get_hashmap(_ctx: AppContext, _args: PackedValue) -> WasmResult<PackedValue> {
+    trinci_sdk::log("Called method `return_hashmap`");
+
+    let mut hashmap: HashMap<&str, u64> = HashMap::default();
+
+    hashmap.insert("val1", 123);
+    hashmap.insert("val2", 456);
+    hashmap.insert("val3", 789);
+
+    let buf = trinci_sdk::rmp_serialize(&hashmap)?;
+    Ok(PackedValue(buf))
+}
+
+/// Try to access to system time.
+fn get_time(_ctx: AppContext, _args: PackedValue) -> WasmResult<u64> {
+    trinci_sdk::log("Called method `get_time`");
+
+    let sys_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap();
+    Ok(sys_time.as_secs())
+}
+
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use trinci_sdk::not_wasm;
 
@@ -260,7 +313,7 @@ mod tests {
     }
 
     fn create_typed_echo_args() -> EchoArgs<'static> {
-        let mut map = HashMap::new();
+        let mut map = HashMap::default();
         map.insert(
             "k1",
             SubStruct {

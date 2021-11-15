@@ -13,6 +13,8 @@ trinci-sdk = { git = "https://github.com/affidaty-blockchain/trinci-sdk-rust" }
 serde = "1.0.126"
 serde_derive = "1.0.126"
 serde_bytes = "0.11.5"
+random = "0.12.2"
+hashers = "1.0.1"
 
 [dev-dependencies]
 libc = "0.2.94"
