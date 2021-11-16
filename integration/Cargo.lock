@@ -2084,7 +2084,7 @@ dependencies = [
 [[package]]
 name = "trinci-core"
 version = "2.0.0"
-source = "git+https://github.com/affidaty-blockchain/trinci-core#5c64c3ff3ef33ae592f867bfaafcfe31435d95b8"
+source = "git+https://github.com/affidaty-blockchain/trinci-core?rev=2243d01a#2243d01a64391959419f53da41c1ef09a84740ce"
 dependencies = [
  "async-std",
  "bitflags",
@@ -2105,7 +2105,7 @@ dependencies = [
 [[package]]
 name = "trinci-sdk"
 version = "0.1.1"
-source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust#8cc1fe49a41b8a64eecbd65bcc09b3a5c23736e8"
+source = "git+https://github.com/affidaty-blockchain/trinci-sdk-rust?rev=d0e134cd#d0e134cdcb5567aa6d208717e51e6bae0fff57cc"
 dependencies = [
  "bs58",
  "hex",

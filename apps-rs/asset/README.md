@@ -59,8 +59,10 @@ Basic Asset
 
 ### `mint`
 
--   Creates some asset units and transfer them to the specified account
+- Creates some asset units and transfer them to the specified account
 - Can be performed only by the asset `creator` or by an `authorized` account.
+- If the call is from a contract the `origin` signer must be the `creator`
+  or an `authorized` account.
 
     ```json
     args: {
@@ -73,6 +75,8 @@ Basic Asset
 
 - Destroys some asset from the specified account
 - Can be performed only by the asset `creator` or by an `authorized` account.
+- If the call is from a contract the `origin` signer must be the `creator`
+  or an `authorized` account.
 
     ```json
     args: {

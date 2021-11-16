@@ -36,5 +36,5 @@ docker run \
 	-v $REGISTRY_PATH:$REGISTRY_PATH_GUEST \
     -w $GUEST_WD \
     -u $USER_ID:$GROUP_ID \
-    davxy/rust-builder $COMMAND
+    affidaty/rust-buster-builder $COMMAND
 

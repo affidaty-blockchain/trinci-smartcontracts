@@ -191,11 +191,11 @@ fn create_txs(update_status: &str) -> Vec<Transaction> {
 
     vec![
         // 0. Initialize currency asset
-        asset_init_tx(currency_asset_info, CURRENCY_ASSET_ALIAS, withdraw_info), // For now withdraw account must be authorized to burn
+        asset_init_tx(currency_asset_info, CURRENCY_ASSET_ALIAS, exchange_info),
         // 1. Mint some units in exchange account.
         asset_mint_tx(currency_asset_info, exchange_info, 7_500),
         // 2. Initialize withdrawn asset
-        asset_init_tx(withdrawn_asset_info, WITHDRAWN_ASSET_ALIAS, withdraw_info), // For now withdraw account must be authorized to burn
+        asset_init_tx(withdrawn_asset_info, WITHDRAWN_ASSET_ALIAS, exchange_info),
         // 3. Mint some units in customer account.
         asset_mint_tx(withdrawn_asset_info, customer_info, 5_000),
         // 4. Transfer funds from exchange to withdraw account.
