@@ -30,6 +30,12 @@ Crypto
 
 ### `merkle_tree_verify`
  - Verify leaves in a merkle tree with multiproof
- 
 
-See: https://gitlab.affidaty.net/developer2/wiki/-/blob/develop/Smart-contracts/Crypto-smart-contract.md
+ ```json
+     args: {
+       "root": string,
+       "indices": numeric_array,
+       "leaves": string_array,
+       "depth": numeric,
+       "proofs": string_array,
+ ```
