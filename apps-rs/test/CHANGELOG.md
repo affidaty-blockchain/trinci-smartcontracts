@@ -26,18 +26,47 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
-Test contract
+
+0.2.1 - 17-11-2021
+------------------
+
+Added
+* added get_account_keys method to test get_keys host function
+* added store_data utility method
 
 0.2.0 - 10-11-2021
 ------------------
+
+Added
 * added notify method to test emit_data host function
+
+Changed
 * updated trinci sdk
 * rust version 2021
-
-
-0.1.2 - 05-11-2021
-------------------
 * renamed alloc in rust sdk
-* updated wasm
 
 
+0.1.2 - 13-10-2021
+------------------
+
+Changed
+* Mint and Burn can be performed by a smart contract call
+  if the transaction signer is authorized
+
+
+0.1.2 - 26-10-2021
+------------------
+
+Added
+* methods for deterministic tests
+  * random_sequence,
+  * return_hashmap,
+  * get_time
+* added mint method for integration test purpouse
+
+
+0.1.1 - 13-09-2021
+------------------
+
+Changed
+* test contract for wasm machine testing
