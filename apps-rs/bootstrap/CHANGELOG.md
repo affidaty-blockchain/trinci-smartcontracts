@@ -28,7 +28,7 @@ Additional labels for pre-release metadata:
 
 Bootstrap contract
 
-0.1.4 - 10-11-2021
+0.1.4 - 10-11-2021 
 ------------------
 
 * updated trinci sdk
