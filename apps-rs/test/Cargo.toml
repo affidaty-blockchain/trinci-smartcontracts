@@ -1,6 +1,6 @@
 [package]
 name = "test"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["The Trinci Team <trinci@affidaty.io>"]
 edition = "2021"
 description = "Core wasm machine unit tests contract"
@@ -10,12 +10,11 @@ crate-type = ["cdylib"]
 
 [dependencies]
 trinci-sdk = { git = "https://github.com/affidaty-blockchain/trinci-sdk-rust" }
-serde = "1.0.126"
-serde_derive = "1.0.126"
+serde = { version = "1.0.136", features = ["derive"] }
 serde_bytes = "0.11.5"
 random = "0.12.2"
 hashers = "1.0.1"
 
 [dev-dependencies]
-libc = "0.2.94"
+libc = "0.2.116"
 hex = "0.4.3"

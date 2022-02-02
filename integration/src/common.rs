@@ -25,9 +25,16 @@ use std::{
     path::{Path, PathBuf},
 };
 use trinci_core::{
+    base::{
+        schema::{
+            BulkTransaction, BulkTransactions, SignedTransaction, TransactionData,
+            TransactionDataBulkNodeV1, TransactionDataBulkV1, UnsignedTransaction,
+        },
+        serialize::rmp_serialize,
+    },
     crypto::{ecdsa, Hash, HashAlgorithm, KeyPair, PublicKey},
     wm::WasmLoader,
-    Account, Error, ErrorKind, Transaction, TransactionData,
+    Account, Error, ErrorKind, Transaction, TransactionDataV1,
 };
 use trinci_sdk::rmp_serialize_named;
 pub use trinci_sdk::tai::{Asset, AssetLockArgs, LockPrivilege, LockType};
@@ -57,6 +64,16 @@ pub const PVT_KEY7: &str = "fa646fa1f6d3b876b0f57700d0134d11fd1913073092e23f3df7
 
 pub const PUB_KEY8: &str = "044717583406373a9b47f564e6af4c28d9bc45b11da5de0fdfcd9928dab12eaacaedfabc7357565f2ecfa222f4b4e654a727397c3cad00a2af4c21defe5a0b403d3e62390b71633b203c268fd35ffe2e83fc7c602c2ae19274707a96f579e5439e";
 pub const PVT_KEY8: &str = "f9a2619f076ca99870bb90b4faf63a9ddedc031b07a1f2ea82305b71dc43d040b64ff56af043c887a24f5c4148b15dad";
+
+pub const PKCS8_01: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a4020101043072903f41e56843227c479c012994be571d7bf0cf083cb154a369c4008a8709b04f625ee86f281a4b7e4f445b52aaf043a00706052b81040022a16403620004677ab1f2832bfec85ec98b96854db0091b02421d0871ac56f0ff2388e9aad26c486df10a286fda1b2a6955ec283e601580a39cbbad059b778f3af5d4a5fd6b36a2d16bf66fac5630c4778e0cbc3efe025fb492bcb8245e9781c880314fa8aed4";
+pub const PKCS8_02: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308054283d0eb1af7b1e8349e5f694208342762fcb0c9386cf1fa87f9985bb73a02cfeddccc26ed6fe15d8da019493537ba00706052b81040022a164036200041174cc62f48c0f105a54255291247617ab7983de0ae08c6a26afb28ce04cd76525fa48e75d7cef1e16e165c500e1aba6beb4c2fdbf2e8f8237c1075cb498c32e00d4ab4c37d8bf3ff4a359c8917519015bddf1038e0105fe928f74b31f4f9185";
+pub const PKCS8_03: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430b0394ba13c3f916137a902f1b5e4ef6e1e2b2c8b7c3ef9a39eac68b6c52a3927b5ad0e0ff3ef00a0c551d3b954738e32a00706052b81040022a164036200048cfc38a74cfce0ed3f85d44fbefe14e20238049215573a59f4232098696679d616258041a176ba9f5188ad45c7a6b45b1352a87ac5f2987fc68b96fa63e432536c506dad03088888d70617152bea5107ba4ade8a69d030fd392000eb1a324038";
+pub const PKCS8_04: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430caa9e7c1d5e9a6cd702e3f0c4e20adbf70abf318006c7c2369212b38915f466f5151fde7d8498ae031fd31b36f91c18da00706052b81040022a16403620004f426b3fcd49732a87ea836036d3ef68fb352e5d9c54699a8dd2baee44ccfcc017cfe9e8f4cca12037304d8026ae038124fd10cf339e49d4544dc4985ada714a357e2e199c0c84ba005d421f830018f9903bedf31b4653fd67ca53bdb683e63d9";
+pub const PKCS8_05: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308c14091733a6a3d64a0467a4b905775aa9844b03c7d7f7791f11879132445a49e748c6b2aa240dc97aca0c4ab90ee841a00706052b81040022a16403620004d482fa861888be6a0ad580a6e64c459e427de0791d93e472b68cd4b281ebf8c544eff24898124d6618757e494cb75864f0e584e57559fa16ccc75f4aa57c549d2b1a252cad8358ae5e4a73f86a84edc778b1d15dc07acf67f70f6cb2f69c062e";
+pub const PKCS8_06: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430faca9932e9679bbd45723963a88fcad2c39fbf2b53868b899e92bf6315cd725a505cd9aeb5fbbd8e85a99eb8c045bb4ca00706052b81040022a164036200041ef7e46cf1a09e0a761d27c85143ae268cc6fd91ae498629937cfe8b9a15b4c564de296305732017ba5509950d3480af40f00bcece98cc80004251abba818ce72807a94d7af5f385650ec7656b820b900df319aab230435fba3f31dba5a8811f";
+pub const PKCS8_07: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104300f7d3838b4e8743e72df2c6df7139ee06a8218c0c29a028391c344470e8905bf4b6b283c432702ca53bcc842bbe9c4faa00706052b81040022a1640362000413cf363d9c7d9cbc6a72878c1293f979a443520663ea4d9dd2fa5a442e9693958b36ea4d09c78391a595ef4997ce7bfe8d4a2fa46a850078033e2e1ebc05c9d0670577f15ce35eb7b9ecbbc27aac47f8e87181471b566188a060236123826364";
+pub const PKCS8_08: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104305e9e56c0d18bd775806d0561bbd1a4a72c587f3110d87e6645a44a0a71bbc7e77ae5bf381e6df0026406b46b08ee8a75a00706052b81040022a16403620004a4ec78e0fd5bf731028dd339567d782b200c38426af7cc7d06e4e89bbfc5d47109af0871b51d818ec47aa818e09cb377ede2d261bc8ac61bce4d2884a4635ad8db142d8865032230930ab53caf2f13290b4baca69dc8b1d3595a4e213826ea83";
+pub const PKCS8_09: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308f9d5bb2af6c8e6418c3099d209c112db9d7dcc1f946cafa7c072077402bc60fe9d37336f7a9a59f89f3b21c022e65a7a00706052b81040022a16403620004aa70ba3a9ae56a5032fd88040c6db8bb02d37f308c399b972a60caf7e4c14f01fff240fee1fe64498145d903e9f02c505aa8e188a29fd78b7a2769a0ea9aa7cb7016465d9c5d27a0f7d669187aec1205ba9f605c7473745a9e1bab3d6c72a57f";
 
 lazy_static! {
     pub static ref ASSET_APP_HASH: Hash = app_hash("asset.wasm").unwrap();
@@ -115,28 +132,23 @@ pub fn create_test_tx_data(
     args: impl Serialize,
 ) -> TransactionData {
     static mut MYNONCE: u64 = 0;
-    let ecdsa_public_key = ecdsa::PublicKey {
-        value: hex::decode(public_key).unwrap(),
-        curve_id: ecdsa::CurveId::Secp384R1,
-    };
-    let public_key = PublicKey::Ecdsa(ecdsa_public_key);
+
     let args = rmp_serialize_named(&args).unwrap();
 
     let nonce = unsafe {
         MYNONCE += 1;
         MYNONCE.to_be_bytes().to_vec()
     };
-    TransactionData {
+    TransactionData::V1(TransactionDataV1 {
         account: id.to_string(),
         nonce,
         network: "skynet".to_string(),
         contract: Some(contract_hash),
         method: method.to_string(),
-        caller: public_key,
+        caller: p384_hex_key_to_public_key(public_key),
         args,
-        schema: "my-cool-schema".to_string(),
         fuel_limit: 0,
-    }
+    })
 }
 
 pub fn create_test_tx(
@@ -148,13 +160,165 @@ pub fn create_test_tx(
     args: impl Serialize,
 ) -> Transaction {
     let data = create_test_tx_data(id, public_key, target, method, args);
-    let public_bytes = hex::decode(public_key).unwrap();
-    let private_bytes = hex::decode(private_key).unwrap();
-    let ecdsa_keypair =
-        ecdsa::KeyPair::new(ecdsa::CurveId::Secp384R1, &private_bytes, &public_bytes).unwrap();
-    let keypair = KeyPair::Ecdsa(ecdsa_keypair);
-    let signature = data.sign(&keypair).unwrap();
-    Transaction { data, signature }
+    let keypair = p384_hex_keypair_to_keypair(public_key, private_key);
+    let buf = trinci_core::base::serialize::rmp_serialize(&data).unwrap();
+    let signature = keypair.sign(&buf).unwrap();
+
+    Transaction::UnitTransaction(SignedTransaction { data, signature })
+}
+
+pub fn create_bulk_root_tx(
+    id: &str,
+    public_key: &str,
+    target: Hash,
+    method: &str,
+    args: impl Serialize,
+) -> UnsignedTransaction {
+    static mut MYNONCE: u64 = 0;
+
+    let args = rmp_serialize_named(&args).unwrap();
+
+    let nonce = unsafe {
+        MYNONCE += 1;
+        MYNONCE.to_be_bytes().to_vec()
+    };
+
+    let root_data = TransactionData::BulkRootV1(TransactionDataV1 {
+        account: id.to_string(),
+        fuel_limit: 0,
+        nonce,
+        network: "skynet".to_string(),
+        contract: Some(target),
+        method: method.to_string(),
+        caller: p384_hex_key_to_public_key(public_key),
+        args,
+    });
+
+    UnsignedTransaction { data: root_data }
+}
+
+fn create_transaction_data_bulk_node_v1(
+    id: &str,
+    public_key: PublicKey,
+    target: Hash,
+    method: &str,
+    args: impl Serialize,
+    depends_on: Hash,
+) -> TransactionData {
+    static mut MYNONCE: u64 = 0;
+
+    let args = rmp_serialize_named(&args).unwrap();
+
+    let nonce = unsafe {
+        MYNONCE += 1;
+        MYNONCE.to_be_bytes().to_vec()
+    };
+
+    TransactionData::BulkNodeV1(TransactionDataBulkNodeV1 {
+        account: id.to_string(),
+        fuel_limit: 0,
+        nonce,
+        network: "skynet".to_string(),
+        contract: Some(target),
+        method: method.to_string(),
+        caller: public_key,
+        args,
+        depends_on,
+    })
+}
+
+pub fn create_bulk_node_transaction(
+    id: &str,
+    public_key: &str,
+    private_key: &str,
+    target: Hash,
+    method: &str,
+    args: impl Serialize,
+    depends_on: Hash,
+) -> SignedTransaction {
+    let keypair = p384_hex_keypair_to_keypair(public_key, private_key);
+
+    let data = create_transaction_data_bulk_node_v1(
+        id,
+        keypair.public_key(),
+        target,
+        method,
+        args,
+        depends_on,
+    );
+
+    let buf = rmp_serialize(&data).unwrap();
+    let signature = keypair.sign(&buf).unwrap();
+
+    SignedTransaction { data, signature }
+}
+
+fn create_test_data_bulk(
+    root: UnsignedTransaction,
+    nodes: Vec<SignedTransaction>,
+) -> TransactionData {
+    TransactionData::BulkV1(TransactionDataBulkV1 {
+        txs: BulkTransactions {
+            root: Box::new(root),
+            nodes: Some(nodes),
+        },
+    })
+}
+
+pub fn create_test_bulk_tx(
+    public_key: &str,
+    private_key: &str,
+    root: UnsignedTransaction,
+    nodes: Vec<SignedTransaction>,
+) -> Transaction {
+    let keypair = p384_hex_keypair_to_keypair(public_key, private_key);
+    let data = create_test_data_bulk(root, nodes);
+    let buf = rmp_serialize(&data).unwrap();
+    let signature = keypair.sign(&buf).unwrap();
+
+    Transaction::BulkTransaction(BulkTransaction { data, signature })
+}
+
+pub fn kp_create_test_tx_data(
+    id: &str,
+    public_key: PublicKey,
+    contract_hash: Hash,
+    method: &str,
+    args: impl Serialize,
+) -> TransactionData {
+    static mut MYNONCE: u64 = 0;
+    let args = rmp_serialize_named(&args).unwrap();
+
+    let nonce = unsafe {
+        MYNONCE += 1;
+        MYNONCE.to_be_bytes().to_vec()
+    };
+    TransactionData::V1(TransactionDataV1 {
+        account: id.to_string(),
+        nonce,
+        network: "skynet".to_string(),
+        contract: Some(contract_hash),
+        method: method.to_string(),
+        caller: public_key,
+        args,
+        fuel_limit: 0,
+    })
+}
+
+pub fn kp_create_test_tx(
+    id: &str,
+    keypair: &trinci_core::crypto::sign::KeyPair,
+    target: Hash,
+    method: &str,
+    args: impl Serialize,
+) -> Transaction {
+    let public_key = keypair.public_key();
+    let data = kp_create_test_tx_data(id, public_key, target, method, args);
+
+    let buf = rmp_serialize(&data).unwrap();
+    let signature = keypair.sign(&buf).unwrap();
+
+    Transaction::UnitTransaction(SignedTransaction { data, signature })
 }
 
 pub fn create_default_account(id: &str) -> Account {
@@ -173,6 +337,22 @@ pub fn p384_hex_key_to_account_id(key: &str) -> String {
         value: hex::decode(key).unwrap(), // TODO: eventually remove the overall function.
     };
     public_key_ecdsa.to_account_id()
+}
+
+pub fn p384_hex_key_to_public_key(public_key: &str) -> PublicKey {
+    let ecdsa_public_key = ecdsa::PublicKey {
+        value: hex::decode(public_key).unwrap(),
+        curve_id: ecdsa::CurveId::Secp384R1,
+    };
+    PublicKey::Ecdsa(ecdsa_public_key)
+}
+
+fn p384_hex_keypair_to_keypair(public_key: &str, private_key: &str) -> KeyPair {
+    let public_bytes = hex::decode(public_key).unwrap();
+    let private_bytes = hex::decode(private_key).unwrap();
+    let ecdsa_keypair =
+        ecdsa::KeyPair::new(ecdsa::CurveId::Secp384R1, &private_bytes, &public_bytes).unwrap();
+    KeyPair::Ecdsa(ecdsa_keypair)
 }
 
 pub fn file_read(filename: &Path) -> Option<Vec<u8>> {

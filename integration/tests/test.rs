@@ -66,6 +66,18 @@ fn get_account_keys_tx(test_info: &AccountInfo, pattern: &str) -> Transaction {
     )
 }
 
+fn get_account_contract(test_info: &AccountInfo, account_id: &str) -> Transaction {
+    let args = account_id;
+    common::create_test_tx(
+        &test_info.id,
+        &test_info.pub_key,
+        &test_info.pvt_key,
+        *TEST_APP_HASH,
+        "test_get_account_contract",
+        args,
+    )
+}
+
 fn create_txs() -> Vec<Transaction> {
     let test_info = ACCOUNTS_INFO.get(TEST_ALIAS).unwrap();
 
@@ -94,6 +106,10 @@ fn create_txs() -> Vec<Transaction> {
         get_account_keys_tx(test_info, "ab*"),
         // 11. Get keys with wildcard pattern.
         get_account_keys_tx(test_info, "*"),
+        // 12. Get test account contract.
+        get_account_contract(test_info, &test_info.id),
+        // 13. Get test not existing account contract.
+        get_account_contract(test_info, "not-existing"),
     ]
 }
 
@@ -133,6 +149,7 @@ fn check_basic_rxs(rxs: Vec<Receipt>) {
     // 9. Store some data
     assert!(rxs[9].success);
     // 10. Get keys with ab pattern.
+    assert!(rxs[10].success);
     let mut res: Vec<String> = rmp_deserialize(&rxs[10].returns).unwrap();
     let mut expected = vec![
         "ab*xyz".to_string(),
@@ -144,6 +161,7 @@ fn check_basic_rxs(rxs: Vec<Receipt>) {
     expected.sort();
     assert_eq!(res, expected);
     // 11. Get keys with wildcard pattern.
+    assert!(rxs[11].success);
     let mut res: Vec<String> = rmp_deserialize(&rxs[11].returns).unwrap();
     let mut expected = vec![
         "abc".to_string(),
@@ -156,6 +174,17 @@ fn check_basic_rxs(rxs: Vec<Receipt>) {
     res.sort();
     expected.sort();
     assert_eq!(res, expected);
+
+    // 12. Get test account contract.
+    assert!(rxs[12].success);
+    let buf: Vec<u8> = rmp_deserialize(&rxs[12].returns).unwrap();
+    let hash = Hash::from_bytes(&buf).unwrap();
+    assert_eq!(*TEST_APP_HASH, hash);
+
+    // 13. Get test not existing account contract.
+    assert!(rxs[13].success);
+    let buf: Vec<u8> = rmp_deserialize(&rxs[13].returns).unwrap();
+    assert_eq!(buf, Vec::<u8>::new());
 }
 
 #[test]

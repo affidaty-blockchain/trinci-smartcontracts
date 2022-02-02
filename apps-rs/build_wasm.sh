@@ -8,7 +8,7 @@ BUILD_DIR="${CURRENT_DIR}/build"
 
 # Release build
 
-CARGO_CMD="build --release --target wasm32-unknown-unknown --out-dir ${BUILD_DIR} -Z unstable-options"
+CARGO_CMD="+nightly build --release --target wasm32-unknown-unknown --out-dir ${BUILD_DIR} -Z unstable-options"
 
 ./cargo_broadcast.sh $CARGO_CMD
 

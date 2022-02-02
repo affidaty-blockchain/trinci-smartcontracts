@@ -19,7 +19,7 @@
 
 use std::collections::BTreeMap;
 
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 // Init Args
 #[derive(Serialize, Deserialize)]

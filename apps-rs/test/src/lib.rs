@@ -24,7 +24,7 @@
 //!  - Trigger exceptional conditions.
 //!
 use random::Source;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::SystemTime;
 use std::{
@@ -51,6 +51,8 @@ trinci_sdk::app_export!(
     store_data,
     // Host function tests
     get_account_keys,
+    test_sha256,
+    test_get_account_contract,
     // Trigger exceptional conditions.
     divide_by_zero,
     trigger_panic,
@@ -156,6 +158,16 @@ fn get_account_keys(_ctx: AppContext, pattern: &str) -> WasmResult<Vec<String>> 
     trinci_sdk::get_data_keys(pattern)
 }
 
+/// Call the host function hf_sha256
+fn test_sha256(_ctx: AppContext, data: PackedValue) -> WasmResult<Vec<u8>> {
+    Ok(trinci_sdk::sha256(&data.0))
+}
+
+/// Call the host function hf_get_account_contract
+fn test_get_account_contract(_ctx: AppContext, account_id: &str) -> WasmResult<Vec<u8>> {
+    Ok(trinci_sdk::get_account_contract(account_id))
+}
+
 /// Call the host function hf_transfer
 ///
 /// Transfer an *amount* of *asset* from the *caller account* to the *dest account*
@@ -259,8 +271,8 @@ fn null_pointer_indirection(_ctx: AppContext, _args: Value) -> WasmResult<Value>
 
 /// Send a notification to the host.
 fn notify(ctx: AppContext, data: Value) -> WasmResult<()> {
-    trinci_sdk::emit_data_mp!(ctx.caller, ctx.method, &data)?;
-    trinci_sdk::emit_data_mp!(ctx.caller, ctx.method, &[1, 2, 3])?;
+    trinci_sdk::emit_data_mp!("event_a", &data)?;
+    trinci_sdk::emit_data_mp!(ctx.caller, &[1, 2, 3])?;
     Ok(())
 }
 
@@ -535,6 +547,43 @@ mod tests {
         let res = not_wasm::call_wrap(get_account_keys, ctx, args).unwrap();
 
         assert_eq!(res, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_sha256_ok() {
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+        let args = PackedValue(vec![1, 2, 3]);
+
+        let res = not_wasm::call_wrap(test_sha256, ctx, args).unwrap();
+
+        let expected = [
+            3, 144, 88, 198, 242, 192, 203, 73, 44, 83, 59, 10, 77, 20, 239, 119, 204, 15, 120,
+            171, 204, 206, 213, 40, 125, 132, 161, 162, 1, 28, 251, 129,
+        ];
+
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn get_not_existing_account_contract_test() {
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+        not_wasm::set_account_contract(OWNER_ID, vec![1, 2, 3]);
+        let args = "not-existing-account";
+
+        let res = not_wasm::call_wrap(test_get_account_contract, ctx, args).unwrap();
+
+        assert_eq!(res, Vec::<u8>::new());
+    }
+
+    #[test]
+    fn get_existing_account_contract_test() {
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+        not_wasm::set_account_contract(OWNER_ID, vec![1, 2, 3]);
+        let args = OWNER_ID;
+
+        let res = not_wasm::call_wrap(test_get_account_contract, ctx, args).unwrap();
+
+        assert_eq!(res, vec![1, 2, 3]);
     }
 
     #[test]

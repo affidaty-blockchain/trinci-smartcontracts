@@ -27,6 +27,12 @@ Additional labels for pre-release metadata:
 * rc.x: stable release candidate.
 
 
+0.2.2 - 02-02-2022
+------------------
+
+Added
+* test_get_account_contract to test get_account_contract host function
+
 0.2.1 - 17-11-2021
 ------------------
 

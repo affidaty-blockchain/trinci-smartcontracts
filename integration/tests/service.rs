@@ -23,6 +23,7 @@ use integration::{
     TestApp,
 };
 use lazy_static::lazy_static;
+use serde_value::Value;
 
 use std::collections::HashMap;
 use trinci_core::{
@@ -32,7 +33,7 @@ use trinci_core::{
     Account, Error, ErrorKind, Receipt, Transaction,
 };
 
-use trinci_sdk::{rmp_deserialize, rmp_serialize, value};
+use trinci_sdk::{rmp_deserialize, value};
 
 lazy_static! {
     pub static ref SERVICE_APP_HASH: Hash = common::app_hash("service.wasm").unwrap();
@@ -42,7 +43,7 @@ const SERVICE_ALIAS: &str = "Service";
 const SUBMITTER_ALIAS: &str = "Submitter";
 const ASSET_ALIAS: &str = "FCK";
 
-const SERVICE_ID: &str = "QmfZy5bvk7a3DQAjCbGNtmrPXWkyVvPrdnZMyBZ5q5ieKG";
+const SERVICE_ID: &str = "TRINCI";
 
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
@@ -56,28 +57,28 @@ lazy_static! {
     static ref ASSET_APP_HASH_HEX: String = hex::encode(&ASSET_APP_HASH.as_bytes());
     static ref SERVICE_APP_BIN: Vec<u8> = common::app_read("service.wasm").unwrap();
     static ref SERVICE_APP_HASH_HEX: String = hex::encode(&SERVICE_APP_HASH.as_bytes());
-    static ref CONTRACTS_DATA_HEX: String = {
-        let val = value!(
+    static ref CONTRACTS_DATA: Value = {
+        value!(
         {
-            *ASSET_APP_HASH_HEX.clone(): [
-                "mycontract",
-                "0.1.0",
-                "QmSCRCPFznxEX6S316M4yVmxdxPB6XN63ob2LjFYkP6MLq",
-                "This is my personal contract",
-                "http://www.mycontract.org",
-            ]
-        });
-        let buf = rmp_serialize(&val).unwrap();
-        hex::encode(&buf)
+            "name": "mycontract",
+            "version": "0.1.0",
+            "publisher": ACCOUNTS_INFO.get(SERVICE_ALIAS).unwrap().id,
+            "description": "This is my personal contract",
+            "url": "http://www.mycontract.org",
+        })
     };
 }
 
 fn set_service_wasm_loader(app: &mut TestApp) {
     let chan = app.block_svc.request_channel();
+
     let wasm_loader = move |hash| {
+        let mut code_key = String::from("contracts:code:");
+        code_key.push_str(&hex::encode(hash));
+
         let req = Message::GetAccountRequest {
             id: SERVICE_ID.to_string(),
-            data: vec![hex::encode(hash)],
+            data: vec![code_key],
         };
         let res_chan = chan.send_sync(req).unwrap();
         match res_chan.recv_sync() {
@@ -109,11 +110,14 @@ fn create_service_account(app: &mut TestApp) {
     // Store the SERVICE contract binary in the SERVICE account data
     // (for service wasm loader lookup resolution)
     // TODO: probably we shall store service contract registration data as well.
-    fork.store_account_data(SERVICE_ID, &SERVICE_APP_HASH_HEX, SERVICE_APP_BIN.clone());
+    let mut code_key = String::from("contracts:code:");
+    code_key.push_str(&SERVICE_APP_HASH_HEX);
+
+    fork.store_account_data(SERVICE_ID, &code_key, SERVICE_APP_BIN.clone());
     db.fork_merge(fork).unwrap();
 }
 
-fn create_contract_registration_tx(submitter_info: &AccountInfo) -> Transaction {
+fn create_contract_registration_tx(caller_info: &AccountInfo) -> Transaction {
     let args = value!({
         "name": "mycontract",
         "version": "0.1.0",
@@ -124,8 +128,8 @@ fn create_contract_registration_tx(submitter_info: &AccountInfo) -> Transaction 
 
     common::create_test_tx(
         SERVICE_ID,
-        &submitter_info.pub_key,
-        &submitter_info.pvt_key,
+        &caller_info.pub_key,
+        &caller_info.pvt_key,
         *SERVICE_APP_HASH,
         "contract_registration",
         args,
@@ -150,35 +154,57 @@ fn asset_init_tx(asset_info: &AccountInfo) -> Transaction {
     )
 }
 
+fn service_init_tx(service_info: &AccountInfo) -> Transaction {
+    common::create_test_tx(
+        "TRINCI",
+        &service_info.pub_key,
+        &service_info.pvt_key,
+        *SERVICE_APP_HASH,
+        "init",
+        SERVICE_APP_BIN.clone(),
+    )
+}
+
 fn create_contract_registration_txs() -> Vec<Transaction> {
     let submitter_info = ACCOUNTS_INFO.get(SUBMITTER_ALIAS).unwrap();
+    let service_info = ACCOUNTS_INFO.get(SERVICE_ALIAS).unwrap();
 
     vec![
         // 0. Call to an unregistered contract. Expected to fail.
         asset_init_tx(submitter_info),
-        // 1. Register the contract.
-        create_contract_registration_tx(submitter_info),
+        // 1. Initialize the service
+        service_init_tx(service_info),
+        // 2. Register the contract.
+        create_contract_registration_tx(service_info),
     ]
 }
-
 fn check_contract_registration_rxs_first(rxs: Vec<Receipt>) {
-    // 0.
+    // 0. Call to an unregistered contract. Expected to fail.
     assert!(!rxs[0].success);
     let error = String::from_utf8_lossy(&rxs[0].returns);
     assert_eq!(error, "resource not found: smart contract not found");
-    // 1.
+    // 1. Initialize the service
     assert!(rxs[1].success);
-    let contract_hash: String = rmp_deserialize(&rxs[1].returns).unwrap();
+    // 2. Register the contract.
+    assert!(rxs[2].success);
+    let contract_hash: String = rmp_deserialize(&rxs[2].returns).unwrap();
     assert_eq!(*ASSET_APP_HASH_HEX, contract_hash);
 }
 
 fn check_contract_registration_rxs_second(rxs: Vec<Receipt>) {
-    // 0.
+    // 0. Call to an unregistered contract. Expected to fail.
     assert!(rxs[0].success);
-    // 1.
+    // 1. Initialize the service
     assert!(!rxs[1].success);
     let msg = String::from_utf8_lossy(&rxs[1].returns);
-    assert_eq!(msg, "smart contract fault: contract with the same name and version already registered");
+    assert_eq!(msg, "smart contract fault: Already initialized.");
+    // 2. Register the contract.
+    assert!(!rxs[2].success);
+    let msg = String::from_utf8_lossy(&rxs[2].returns);
+    assert_eq!(
+        msg,
+        "smart contract fault: Smart contract with the same name and version has already been published."
+    );
 }
 
 #[test]
@@ -204,12 +230,18 @@ fn test_contract_registration() {
 
     // Blockchain check.
 
-    let contracts = app.account_data(SERVICE_ID, "contracts").unwrap();
-    let contracts = hex::encode(contracts);
-    assert_eq!(contracts, *CONTRACTS_DATA_HEX);
+    let mut code_key = String::from("contracts:metadata:");
+    code_key.push_str(&ASSET_APP_HASH_HEX);
+
+    let contract_data = app.account_data(SERVICE_ID, &code_key).unwrap();
+    let contract_data: Value = rmp_deserialize(&contract_data).unwrap();
+    assert_eq!(contract_data, *CONTRACTS_DATA);
 
     let contract_bin_exp = &*ASSET_APP_BIN;
     let contract_id = hex::encode(Hash::from_data(HashAlgorithm::Sha256, contract_bin_exp));
-    let contract_bin = app.account_data(SERVICE_ID, &contract_id).unwrap();
+    let mut code_key = String::from("contracts:code:");
+    code_key.push_str(&contract_id);
+
+    let contract_bin = app.account_data(SERVICE_ID, &code_key).unwrap();
     assert_eq!(&contract_bin, contract_bin_exp);
 }

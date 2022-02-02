@@ -23,5 +23,8 @@ for dir in $dirs; do
     if [ -f $dir/Cargo.toml ]; then
         echo PROCESSING $manifest
         cargo $main --manifest-path $manifest -- $sub
+        if [ $? -ne 0 ]; then
+            exit
+        fi
     fi
 done

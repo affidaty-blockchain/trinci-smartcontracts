@@ -26,25 +26,16 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
-Service contract
+Storage contract
 
-0.1.4 - 10-11-2021
+0.1.2 - 10-11-2021
 ------------------
 
 * updated trinci sdk
 * rust version 2021
 
 
-0.1.3 - 05-11-2021
+0.1.1 - 05-11-2021
 ------------------
 
-* renamed alloc in rust sdk
-* updated wasm
-
-
-0.1.2 - 13-10-2021
-------------------
-
-Changed
-* replaced collection HashMap with BTreeMap
-
+* first release 
