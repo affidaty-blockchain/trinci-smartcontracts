@@ -32,7 +32,12 @@ use trinci_sdk::{AppContext, PackedValue, WasmError, WasmResult};
 mod types;
 use types::*;
 
-trinci_sdk::app_export!(load_data, store_data, remove_data, balance, transfer);
+trinci_sdk::app_export!(init, load_data, store_data, remove_data, balance, transfer);
+
+/// Init the contract
+pub fn init(_ctx: AppContext, _args: PackedValue) -> WasmResult<()> {
+    Ok(())
+}
 
 /// Remove data into the account data `key` field
 pub fn remove_data(ctx: AppContext, args: RemoveDataArgs) -> WasmResult<()> {

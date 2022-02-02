@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with TRINCI. If not, see <https://www.gnu.org/licenses/>.
 
-use lazy_static::lazy_static;
 use serde::Serialize;
 pub use serde_value::{value, Value as SerdeValue};
 use std::{
@@ -37,7 +36,7 @@ use trinci_core::{
     Account, Error, ErrorKind, Transaction, TransactionDataV1,
 };
 use trinci_sdk::rmp_serialize_named;
-pub use trinci_sdk::tai::{Asset, AssetLockArgs, LockPrivilege, LockType};
+pub use trinci_sdk::tai::{Asset, AssetBalanceArgs, AssetLockArgs, LockPrivilege, LockType};
 
 // Various keypairs used for testing
 
@@ -74,10 +73,6 @@ pub const PKCS8_06: &str = "3081bf020100301006072a8648ce3d020106052b810400220481
 pub const PKCS8_07: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104300f7d3838b4e8743e72df2c6df7139ee06a8218c0c29a028391c344470e8905bf4b6b283c432702ca53bcc842bbe9c4faa00706052b81040022a1640362000413cf363d9c7d9cbc6a72878c1293f979a443520663ea4d9dd2fa5a442e9693958b36ea4d09c78391a595ef4997ce7bfe8d4a2fa46a850078033e2e1ebc05c9d0670577f15ce35eb7b9ecbbc27aac47f8e87181471b566188a060236123826364";
 pub const PKCS8_08: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104305e9e56c0d18bd775806d0561bbd1a4a72c587f3110d87e6645a44a0a71bbc7e77ae5bf381e6df0026406b46b08ee8a75a00706052b81040022a16403620004a4ec78e0fd5bf731028dd339567d782b200c38426af7cc7d06e4e89bbfc5d47109af0871b51d818ec47aa818e09cb377ede2d261bc8ac61bce4d2884a4635ad8db142d8865032230930ab53caf2f13290b4baca69dc8b1d3595a4e213826ea83";
 pub const PKCS8_09: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308f9d5bb2af6c8e6418c3099d209c112db9d7dcc1f946cafa7c072077402bc60fe9d37336f7a9a59f89f3b21c022e65a7a00706052b81040022a16403620004aa70ba3a9ae56a5032fd88040c6db8bb02d37f308c399b972a60caf7e4c14f01fff240fee1fe64498145d903e9f02c505aa8e188a29fd78b7a2769a0ea9aa7cb7016465d9c5d27a0f7d669187aec1205ba9f605c7473745a9e1bab3d6c72a57f";
-
-lazy_static! {
-    pub static ref ASSET_APP_HASH: Hash = app_hash("asset.wasm").unwrap();
-}
 
 pub struct AccountInfo {
     pub id: String,

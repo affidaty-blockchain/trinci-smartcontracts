@@ -19,8 +19,8 @@
 
 use integration::{
     common::{
-        self, AccountInfo, Asset, ASSET_APP_HASH, PUB_KEY1, PUB_KEY2, PUB_KEY3, PUB_KEY4, PVT_KEY1,
-        PVT_KEY2, PVT_KEY3, PVT_KEY4,
+        self, AccountInfo, Asset, PUB_KEY1, PUB_KEY2, PUB_KEY3, PUB_KEY4, PVT_KEY1, PVT_KEY2,
+        PVT_KEY3, PVT_KEY4,
     },
     TestApp,
 };
@@ -31,7 +31,8 @@ use trinci_core::{base::serialize, Receipt, Transaction};
 use trinci_sdk::value;
 
 lazy_static! {
-    pub static ref STORAGE_APP_HASH: Hash = common::app_hash("storage.wasm").unwrap();
+    static ref STORAGE_APP_HASH: Hash = common::app_hash("storage.wasm").unwrap();
+    static ref ASSET_APP_HASH: Hash = common::app_hash("asset.wasm").unwrap();
 }
 
 const ASSET_ALIAS: &str = "FCK";

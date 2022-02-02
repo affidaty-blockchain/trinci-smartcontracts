@@ -30,6 +30,7 @@ use serde_value::Value;
 
 lazy_static! {
     pub static ref PAYMEALS_APP_HASH: Hash = common::app_hash("pay_meal.wasm").unwrap();
+    pub static ref ASSET_APP_HASH: Hash = common::app_hash("asset.wasm").unwrap();
 }
 
 use serde::{Deserialize, Serialize};

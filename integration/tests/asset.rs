@@ -24,6 +24,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use trinci_core::{
     base::serialize::{self},
+    crypto::Hash,
     Receipt, Transaction,
 };
 
@@ -43,6 +44,7 @@ lazy_static! {
         map.insert(CRYPTO_ALIAS, AccountInfo::new(PUB_KEY5, PVT_KEY5));
         map
     };
+    static ref ASSET_APP_HASH: Hash = common::app_hash("asset.wasm").unwrap();
 }
 
 fn init_tx(asset_info: &AccountInfo) -> Transaction {

@@ -17,8 +17,7 @@
 
 use integration::{
     common::{
-        self, AccountInfo, SerdeValue, ASSET_APP_HASH, PUB_KEY1, PUB_KEY2, PUB_KEY3, PVT_KEY1,
-        PVT_KEY2, PVT_KEY3,
+        self, AccountInfo, SerdeValue, PUB_KEY1, PUB_KEY2, PUB_KEY3, PVT_KEY1, PVT_KEY2, PVT_KEY3,
     },
     TestApp,
 };
@@ -33,10 +32,10 @@ use trinci_core::{
     Account, Error, ErrorKind, Receipt, Transaction,
 };
 
-use trinci_sdk::{rmp_deserialize, value};
+use trinci_sdk::{rmp_deserialize, value, PackedValue};
 
 lazy_static! {
-    pub static ref SERVICE_APP_HASH: Hash = common::app_hash("service.wasm").unwrap();
+    static ref SERVICE_APP_HASH: Hash = common::app_hash("service.wasm").unwrap();
 }
 
 const SERVICE_ALIAS: &str = "Service";
@@ -53,8 +52,9 @@ lazy_static! {
         map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3));
         map
     };
-    static ref ASSET_APP_BIN: Vec<u8> = common::app_read("asset.wasm").unwrap();
-    static ref ASSET_APP_HASH_HEX: String = hex::encode(&ASSET_APP_HASH.as_bytes());
+    static ref STORAGE_APP_HASH: Hash = common::app_hash("storage.wasm").unwrap();
+    static ref STORAGE_APP_HASH_HEX: String = hex::encode(&STORAGE_APP_HASH.as_bytes());
+    static ref STORAGE_APP_BIN: Vec<u8> = common::app_read("storage.wasm").unwrap();
     static ref SERVICE_APP_BIN: Vec<u8> = common::app_read("service.wasm").unwrap();
     static ref SERVICE_APP_HASH_HEX: String = hex::encode(&SERVICE_APP_HASH.as_bytes());
     static ref CONTRACTS_DATA: Value = {
@@ -123,7 +123,7 @@ fn create_contract_registration_tx(caller_info: &AccountInfo) -> Transaction {
         "version": "0.1.0",
         "description": "This is my personal contract",
         "url": "http://www.mycontract.org",
-        "bin": SerdeValue::Bytes(ASSET_APP_BIN.clone()),
+        "bin": SerdeValue::Bytes(STORAGE_APP_BIN.clone()),
     });
 
     common::create_test_tx(
@@ -136,21 +136,16 @@ fn create_contract_registration_tx(caller_info: &AccountInfo) -> Transaction {
     )
 }
 
-fn asset_init_tx(asset_info: &AccountInfo) -> Transaction {
-    let args = value!({
-        "name": ASSET_ALIAS,
-        "authorized": Vec::<&str>::new(),
-        "description": "My Cool Coin",
-        "url": "https://fck.you",
-        "max_units": 100_000,
-    });
+fn storage_init_tx(storage_info: &AccountInfo) -> Transaction {
+    let args = PackedValue::default();
+
     common::create_test_tx(
-        &asset_info.id,
-        &asset_info.pub_key,
-        &asset_info.pvt_key,
-        *ASSET_APP_HASH,
+        &storage_info.id,
+        &storage_info.pub_key,
+        &storage_info.pvt_key,
+        *STORAGE_APP_HASH,
         "init",
-        args,
+        args.0,
     )
 }
 
@@ -171,7 +166,7 @@ fn create_contract_registration_txs() -> Vec<Transaction> {
 
     vec![
         // 0. Call to an unregistered contract. Expected to fail.
-        asset_init_tx(submitter_info),
+        storage_init_tx(submitter_info),
         // 1. Initialize the service
         service_init_tx(service_info),
         // 2. Register the contract.
@@ -188,7 +183,7 @@ fn check_contract_registration_rxs_first(rxs: Vec<Receipt>) {
     // 2. Register the contract.
     assert!(rxs[2].success);
     let contract_hash: String = rmp_deserialize(&rxs[2].returns).unwrap();
-    assert_eq!(*ASSET_APP_HASH_HEX, contract_hash);
+    assert_eq!(*STORAGE_APP_HASH_HEX, contract_hash);
 }
 
 fn check_contract_registration_rxs_second(rxs: Vec<Receipt>) {
@@ -231,13 +226,13 @@ fn test_contract_registration() {
     // Blockchain check.
 
     let mut code_key = String::from("contracts:metadata:");
-    code_key.push_str(&ASSET_APP_HASH_HEX);
+    code_key.push_str(&STORAGE_APP_HASH_HEX);
 
     let contract_data = app.account_data(SERVICE_ID, &code_key).unwrap();
     let contract_data: Value = rmp_deserialize(&contract_data).unwrap();
     assert_eq!(contract_data, *CONTRACTS_DATA);
 
-    let contract_bin_exp = &*ASSET_APP_BIN;
+    let contract_bin_exp = &*STORAGE_APP_BIN;
     let contract_id = hex::encode(Hash::from_data(HashAlgorithm::Sha256, contract_bin_exp));
     let mut code_key = String::from("contracts:code:");
     code_key.push_str(&contract_id);
