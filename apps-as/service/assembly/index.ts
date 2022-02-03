@@ -89,7 +89,7 @@ const thisCanBeUpdated = true;
 // value is lower than 1, it won't be added to list. If no default validators
 // are added, no one can create new blocks and blockchain won't run.
 const defaultValidatorsAccounts = new Map<string, u64>()
-    .set('12D3KooWFmmKJ7jXhTfoYDvKkPqe7s9pHH42iZdf2xRdM5ykma1p', 1);
+    .set('<Node ID>', 1);
 
 
 // Here you can set immutable blockchain parameters
@@ -99,8 +99,8 @@ function getSettingsObject(): BlockchainSettings {
     // Manual blockchain settings
     // modify here
     settings.accept_broadcast = false;
-    settings.block_threshold = 1;
-    settings.block_timeout = 1;
+    settings.block_threshold = 100;
+    settings.block_timeout = 10;
     settings.burning_fuel_method = 'consume_fuel';
 
     return settings;
