@@ -37,6 +37,7 @@ use trinci_sdk::{
     WasmError, WasmResult,
 };
 trinci_sdk::app_export!(
+    init,
     // Input and output serialization.
     echo_generic,
     echo_typed,
@@ -53,6 +54,7 @@ trinci_sdk::app_export!(
     get_account_keys,
     test_sha256,
     test_get_account_contract,
+    secure_call_test,
     // Trigger exceptional conditions.
     divide_by_zero,
     trigger_panic,
@@ -91,6 +93,22 @@ struct StoreDataArgs<'a> {
     pub key: &'a str,
     #[serde(with = "serde_bytes")]
     pub data: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(test, derive(PartialEq, Clone, Default))]
+struct SecureCallArgs {
+    account: String,
+    #[serde(with = "serde_bytes")]
+    pub contract: Vec<u8>,
+    method: String,
+    #[serde(with = "serde_bytes")]
+    pub data: Vec<u8>,
+}
+
+/// Only binds the contract to an account
+fn init(_ctx: AppContext, _args: PackedValue) -> WasmResult<()> {
+    Ok(())
 }
 
 /// Returns the input data "as is".
@@ -202,6 +220,12 @@ fn divide_by_zero(_ctx: AppContext, args: Value) -> WasmResult<Value> {
     let value2 = trinci_sdk::get_value_as_u64!(args, "zero")?;
 
     Ok(value!(value1 / value2))
+}
+
+/// Secure call host function method
+fn secure_call_test(_ctx: AppContext, args: SecureCallArgs) -> WasmResult<Vec<u8>> {
+    trinci_sdk::log("Called method `secure_call_test`");
+    trinci_sdk::s_call(&args.account, &args.contract, &args.method, &args.data)
 }
 
 /// Trigger panic test method
@@ -648,5 +672,35 @@ mod tests {
         let res = not_wasm::call_wrap(get_account_keys, ctx, args).unwrap();
 
         assert_eq!(res, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_secure_call() {
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+
+        not_wasm::set_contract_method("dummy", "get", echo_packed);
+        not_wasm::set_contract_hash("dummy", &vec![1, 2, 3]);
+        let args = SecureCallArgs {
+            account: "dummy".to_string(),
+            contract: vec![1, 2, 3],
+            method: "get".to_string(),
+            data: vec![0, 5, 7],
+        };
+        let res = not_wasm::call_wrap(secure_call_test, ctx, args).unwrap();
+        assert_eq!(res, [0, 5, 7]);
+    }
+
+    #[test]
+    fn test_secure_call_invalid() {
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+
+        let args = SecureCallArgs {
+            account: "dummy".to_string(),
+            contract: vec![1, 2, 3],
+            method: "get".to_string(),
+            data: vec![1, 2, 3],
+        };
+        let err = not_wasm::call_wrap(secure_call_test, ctx, args).unwrap_err();
+        assert_eq!(err.to_string(), "incompatible contract app");
     }
 }

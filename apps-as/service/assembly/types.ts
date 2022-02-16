@@ -88,9 +88,26 @@ export class BlockchainSettings {
 
     /** Name of the method to call to handle fuel burning. If empty, fuel won't be burned.*/
     burning_fuel_method: string = '';
+
+    /** If false, core will launch in "test mode", enabling some features such as insecure accounts.
+     * More on that in documentation under "test mode" section. */
+    is_production: bool = true;
+
+    /** Minimum core version needed to use this smart contract. */
+    min_node_version: string = "0.2.6";
 }
 
 @msgpackable
 export class FuelAssetStats {
     circulating_volume: u64 = 0;
+}
+
+export class ConsumeFuelReturn {
+    txPassed: bool = false;
+    fuelConsumed: u64 = 0;
+
+    constructor(passed: bool = false, consumed: u64 = 0) {
+        this.txPassed = passed;
+        this.fuelConsumed = consumed;
+    }
 }

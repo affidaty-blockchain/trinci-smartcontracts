@@ -21,22 +21,27 @@ use integration::{
     TestApp,
 };
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
+use serde_value::Value;
 use std::collections::HashMap;
 use trinci_core::{base::serialize::rmp_deserialize, crypto::Hash};
 use trinci_core::{Receipt, Transaction};
 
-const TEST_ALIAS: &str = "FCK";
+const TEST_ALIAS: &str = "Test";
+const TEST2_ALIAS: &str = "Test2";
 
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
         map.insert(TEST_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1));
+        map.insert(TEST2_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2));
         map
     };
 }
 
 lazy_static! {
     pub static ref TEST_APP_HASH: Hash = app_hash("test.wasm").unwrap();
+    pub static ref TEST2_APP_HASH: Hash = app_hash("service.wasm").unwrap();
 }
 
 fn store_data_tx(test_info: &AccountInfo, key: &str, data: &[u8]) -> Transaction {
@@ -77,9 +82,73 @@ fn get_account_contract(test_info: &AccountInfo, account_id: &str) -> Transactio
         args,
     )
 }
+// Hash Algorithms available
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug, PartialEq, Clone))]
+pub enum HashAlgorithm {
+    Sha256,
+    Sha384,
+}
+// Hash arguments
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug, PartialEq, Clone))]
+pub struct HashArgs<'a> {
+    pub algorithm: HashAlgorithm,
+    #[serde(with = "serde_bytes")]
+    pub data: &'a [u8],
+}
+
+fn echo_generic_tx(owner_info: &AccountInfo, user_info: &AccountInfo) -> Transaction {
+    let args = value! ({
+        "greet": "hello!"
+    });
+
+    common::create_test_tx(
+        &owner_info.id,
+        &user_info.pub_key,
+        &user_info.pvt_key,
+        *TEST_APP_HASH,
+        "echo_generic",
+        args,
+    )
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(test, derive(PartialEq, Clone, Default))]
+struct SecureCallArgs {
+    account: String,
+    #[serde(with = "serde_bytes")]
+    pub contract: Vec<u8>,
+    method: String,
+    #[serde(with = "serde_bytes")]
+    pub data: Vec<u8>,
+}
+
+fn secure_call(
+    test_info: &AccountInfo,
+    account: &AccountInfo,
+    contract: Vec<u8>,
+    method: &str,
+) -> Transaction {
+    let args = SecureCallArgs {
+        account: account.id.clone(),
+        contract,
+        method: method.to_string(),
+        data: vec![1, 2, 3],
+    };
+    common::create_test_tx(
+        &test_info.id,
+        &test_info.pub_key,
+        &test_info.pvt_key,
+        *TEST_APP_HASH,
+        "secure_call_test",
+        args,
+    )
+}
 
 fn create_txs() -> Vec<Transaction> {
     let test_info = ACCOUNTS_INFO.get(TEST_ALIAS).unwrap();
+    let test2_info = ACCOUNTS_INFO.get(TEST2_ALIAS).unwrap();
 
     vec![
         // 0. Get keys with empty pattern. This shall fail
@@ -110,6 +179,22 @@ fn create_txs() -> Vec<Transaction> {
         get_account_contract(test_info, &test_info.id),
         // 13. Get test not existing account contract.
         get_account_contract(test_info, "not-existing"),
+        // 14. Secure call on not existing account
+        secure_call(
+            test_info,
+            test2_info,
+            TEST_APP_HASH.as_bytes().to_vec(),
+            "init",
+        ),
+        // 15. Secure call with wrong hash
+        secure_call(
+            test_info,
+            test2_info,
+            TEST2_APP_HASH.as_bytes().to_vec(),
+            "init",
+        ),
+        // 16. Call Echo generic on the new account
+        echo_generic_tx(test2_info, test_info),
     ]
 }
 
@@ -185,6 +270,22 @@ fn check_basic_rxs(rxs: Vec<Receipt>) {
     assert!(rxs[13].success);
     let buf: Vec<u8> = rmp_deserialize(&rxs[13].returns).unwrap();
     assert_eq!(buf, Vec::<u8>::new());
+
+    // 14. Secure call on not existing account
+    assert!(rxs[14].success);
+    // 15. Secure call with wrong hash
+    assert!(!rxs[15].success);
+    assert_eq!(
+        "smart contract fault: resource not found: incompatible contract app",
+        String::from_utf8_lossy(&rxs[15].returns)
+    );
+    // 16. Call Echo generic on the new account
+    assert!(rxs[16].success);
+    let res: Value = rmp_deserialize(&rxs[16].returns).unwrap();
+    let expected = value! ({
+        "greet": "hello!"
+    });
+    assert_eq!(expected, res);
 }
 
 #[test]

@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@affidaty/t2-lib": "^2.0.0"
+    "@affidaty/t2-lib": "^2.0.0",
+    "int64-buffer": "^1.0.1"
   }
 }

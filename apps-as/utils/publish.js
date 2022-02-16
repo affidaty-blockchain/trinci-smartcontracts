@@ -11,15 +11,16 @@ const hashList = new HashList();
 // const nodeUrl = 'http://t2.dev.trinci.net/0.2.3rc1/';
 const nodeUrl = 'http://localhost:8000';
 // const network = 'breakingnet';
-const network = 'QmVkyfEaxPvEJVJLDK93VBq9GSda8oSXvLkey8oY6DdBNR';
-const publishPrivKeyFilePath = '/home/alex/Scrivania/t2/local_data/keys/priv_key_admin.txt';
+const network = 'QmZxyHgnfBxiD5joCfjn6uBsgyzsYuVjMVezdW1btb9Qw3';
+const publishPrivKeyFilePath = '/home/alex/git-projects/t2cli-js-sample-scripts/local_data/keys/priv_key_admin.txt';
 
 // List of files to publish. You can also pass a list of paths
 // as args. they will be added to this list
 const fileList = [
-    '../../registry/crypto.wasm',
-    '../arya/build/arya.wasm',
-    '../bart/build/bart.wasm',
+    '../krono/build/krono.wasm',
+    // '../../registry/crypto.wasm',
+    // '../arya/build/arya.wasm',
+    // '../bart/build/bart.wasm',
     // '../../registry/service.wasm',
 ]
 // CONFIGS END

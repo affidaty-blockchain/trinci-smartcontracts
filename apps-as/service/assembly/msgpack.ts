@@ -17,6 +17,7 @@
 
 import { Decoder, Encoder, Sizer } from '@wapc/as-msgpack';
 import { Utils } from '../node_modules/@affidaty/trinci-sdk-as'
+import { ConsumeFuelReturn } from './types';
 
 export function deserializeStringArray(u8Arr: u8[]): string[] {
     let result: string[] = [];
@@ -83,4 +84,17 @@ export function deserializeValidatorsMap(u8Arr: u8[]): Map<string, u64> {
         result.set(decoder.readString(), decoder.readUInt64());
     }
     return result;
+}
+
+export function serializeConsumeFuelReturn(arg: ConsumeFuelReturn): u8[] {
+    let sizer = new Sizer();
+    sizer.writeArraySize(2);
+    sizer.writeBool(arg.txPassed);
+    sizer.writeUInt64(arg.fuelConsumed);
+    let ab = new ArrayBuffer(sizer.length);
+    let encoder = new Encoder(ab);
+    encoder.writeArraySize(2);
+    encoder.writeBool(arg.txPassed);
+    encoder.writeUInt64(arg.fuelConsumed);
+    return Utils.arrayBufferToU8Array(ab);
 }

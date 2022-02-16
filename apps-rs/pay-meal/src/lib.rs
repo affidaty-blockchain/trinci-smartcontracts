@@ -89,12 +89,8 @@ fn apply(ctx: AppContext, _args: PackedValue) -> WasmResult<()> {
     if let Some(val) = config.customers.get_mut(ctx.caller) {
         if !*val {
             // Make the payment
-            trinci_sdk::asset_transfer(ctx.caller, ctx.owner, config.asset, config.part).map_err(
-                |err| {
-                    println!("err: {}", err.to_string());
-                    WasmError::new("transfer from caller failed")
-                },
-            )?;
+            trinci_sdk::asset_transfer(ctx.caller, ctx.owner, config.asset, config.part)
+                .map_err(|_| WasmError::new("transfer from caller failed"))?;
             *val = true;
         } else {
             return Err(WasmError::new("already paid"));

@@ -17,12 +17,7 @@
 
 use serde::Serialize;
 pub use serde_value::{value, Value as SerdeValue};
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, io::Read, path::Path};
 use trinci_core::{
     base::{
         schema::{
@@ -32,11 +27,10 @@ use trinci_core::{
         serialize::rmp_serialize,
     },
     crypto::{ecdsa, Hash, HashAlgorithm, KeyPair, PublicKey},
-    wm::WasmLoader,
-    Account, Error, ErrorKind, Transaction, TransactionDataV1,
+    Account, Transaction, TransactionDataV1,
 };
 use trinci_sdk::rmp_serialize_named;
-pub use trinci_sdk::tai::{Asset, AssetBalanceArgs, AssetLockArgs, LockPrivilege, LockType};
+pub use trinci_sdk::tai::{Asset, AssetLockArgs, LockPrivilege, LockType};
 
 // Various keypairs used for testing
 
@@ -87,35 +81,6 @@ impl AccountInfo {
             pub_key: pub_key.to_owned(),
             pvt_key: pvt_key.to_owned(),
         }
-    }
-}
-
-fn build_registry_map(path: &str) -> HashMap<Hash, PathBuf> {
-    let mut map: HashMap<Hash, PathBuf> = HashMap::new();
-
-    let entries = std::fs::read_dir(path)
-        .expect("read 'apps' registry")
-        .map(|res| res.map(|e| e.path()))
-        .collect::<std::result::Result<Vec<_>, std::io::Error>>()
-        .expect("reading 'apps' registry");
-
-    for filename in entries {
-        if let Some("wasm") = filename.extension().and_then(|ext| ext.to_str()) {
-            if let Some(hash) = file_hash(&filename) {
-                map.insert(hash, filename);
-            }
-        }
-    }
-    map
-}
-
-pub fn wasm_fs_loader(path: &str) -> impl WasmLoader {
-    let map = build_registry_map(path);
-    move |hash| {
-        let filename = map
-            .get(&hash)
-            .ok_or_else(|| Error::new_ext(ErrorKind::ResourceNotFound, "wasm not found"))?;
-        std::fs::read(filename).map_err(|err| Error::new_ext(ErrorKind::Other, err))
     }
 }
 

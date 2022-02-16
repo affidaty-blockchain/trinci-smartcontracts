@@ -382,13 +382,13 @@ fn create_locking_txs() -> Vec<Transaction> {
 }
 
 fn check_locking_rxs(rxs: Vec<Receipt>) {
-    // 0.
+    // 0. Initialization
     assert!(rxs[0].success);
-    // 1.
+    // 1. Mint on Alice account
     assert!(rxs[1].success);
-    // 2.
+    // 2. Creator locks Alice asset.
     assert!(rxs[2].success);
-    // 3.
+    // 3. Alice tries to transfer to Bob while locked, shall fail.
     assert!(!rxs[3].success);
     assert_eq!(
         String::from_utf8_lossy(&rxs[3].returns),

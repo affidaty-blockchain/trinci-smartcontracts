@@ -16,6 +16,7 @@
 // along with TRINCI. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::common;
+use glob::glob;
 use std::{
     path::PathBuf,
     sync::{Arc, Once},
@@ -28,11 +29,11 @@ use trinci_core::{
     crypto::{
         drand::SeedSource,
         ecdsa::{CurveId as EcdsaCurveId, KeyPair as EcdsaKeyPair},
-        Hash,
+        Hash, HashAlgorithm,
     },
-    db::RocksDb,
+    db::{Db, DbFork, RocksDb},
     wm::WmLocal,
-    Account, ErrorKind, KeyPair, Receipt, Transaction,
+    Account, ErrorKind, KeyPair, Receipt, Transaction, SERVICE_ACCOUNT_ID,
 };
 
 const PRIVATE_KEY_BYTES: &str = "d7d90e5214f69e1297ca555815eefb5a540353561cc45e3be0db6b605f9f337140fae80101bb04e627cecb74556dead3";
@@ -71,15 +72,39 @@ fn is_validator_function_temporary() -> impl IsValidator {
     move |_account_id| Ok(true)
 }
 
+// Register all the wasm module found in apps_path in the service account
+fn register_modules_on_service_account(apps_path: &str, db: &mut RocksDb) {
+    let mut fork = db.fork_create();
+
+    let mut pattern = String::from(apps_path);
+    pattern.push_str("/*.wasm");
+
+    for entry in glob(&pattern).unwrap().flatten() {
+        let mut wasm_file = std::fs::File::open(entry).unwrap();
+        let mut bin = Vec::new();
+        std::io::Read::read_to_end(&mut wasm_file, &mut bin).expect("loading bootstrap");
+
+        let hash = Hash::from_data(HashAlgorithm::Sha256, &bin);
+        let mut key = String::from("contracts:code:");
+        key.push_str(&hex::encode(&hash));
+        fork.store_account_data(SERVICE_ACCOUNT_ID, &key, bin);
+    }
+    db.fork_merge(fork).unwrap();
+}
+
 impl TestApp {
     pub fn new(apps_path: &str) -> Self {
         logger_setup();
 
         let path = TempDir::new().unwrap().into_path();
-        let db = RocksDb::new(&path);
+        let mut db = RocksDb::new(&path);
 
-        let wasm_loader = common::wasm_fs_loader(apps_path);
-        let wm = WmLocal::new(wasm_loader, 3);
+        // Store the smart contracts on the db
+        if !apps_path.is_empty() {
+            register_modules_on_service_account(apps_path, &mut db);
+        }
+
+        let wm = WmLocal::new(3);
 
         let keypair = create_keypair();
         let account_id = keypair.public_key().to_account_id();
@@ -101,7 +126,15 @@ impl TestApp {
             Hash::default(),
         ));
 
-        let mut block_svc = BlockService::new(&account_id, is_validator, config, db, wm, seed);
+        let mut block_svc = BlockService::new(
+            &account_id,
+            is_validator,
+            config,
+            db,
+            wm,
+            seed,
+            String::from("p2p_id"),
+        );
 
         block_svc.start();
 

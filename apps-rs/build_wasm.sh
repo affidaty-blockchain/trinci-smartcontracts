@@ -10,6 +10,8 @@ BUILD_DIR="${CURRENT_DIR}/build"
 
 CARGO_CMD="+nightly build --release --target wasm32-unknown-unknown --out-dir ${BUILD_DIR} -Z unstable-options"
 
+rm -rf ./build/*.wasm
+
 ./cargo_broadcast.sh $CARGO_CMD
 
 # Optimization

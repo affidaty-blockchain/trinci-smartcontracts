@@ -30,6 +30,7 @@ import {
     TransferArgs,
     IsDelegatedToArgs,
     FuelAssetStats,
+    ConsumeFuelReturn,
 } from './types';
 import {
     deserializeStringArray,
@@ -39,6 +40,7 @@ import {
     deserializeU64,
     deserializeValidatorsMap,
     serializeString,
+    serializeConsumeFuelReturn,
 } from './msgpack';
 
 const trueBytes: u8[] = [0xc3];
@@ -59,15 +61,42 @@ const fuelAssetSectionName = 'fuel';
 const fuelAssetStatsSectionName = `${fuelAssetSectionName}:stats`;
 
 // ========================= SETTINGS START =========================
-// A trinci network is identified by the hash of the service smart contract
-// used to initialize nodes. In order to create a separate network with all the
-// same properties of another network you need to change this value.
-const NONCE = '_';
 
 const THIS_NAME = 'service';
 const THIS_VERSION = '1.0.0';
 const THIS_DESCRIPTION = 'Service smart contract';
 const THIS_URL = 'https://affidaty.io';
+
+// if this is set to true, service smart contract can be updated by
+// updateServiceSmartContract method
+const thisCanBeUpdated = true;
+
+// This parameter determines whether every transaction comsumes an amount of fuel or not
+// Set to false to make transactions free.
+const fuelConsumptionActive = true;
+
+// If this is set to true admin checks always return true, meaning that all
+// functionality previously reserved for admins only is now accessible to
+// everyone (including mint, burn, contract_registration etc.)
+const everyoneIsAdmin = false;
+
+// If this is set to true, validator checks always return true, meaning that all
+// nodes will be considered validators.
+const everyoneIsValidator = false;
+
+// If the parameter below is set to true, everyone can publish their own
+// smart contracts. Otherwise you have to be an admin or your smart contract's
+// hash should be preauthorized by an admin ("add_preapproved_contract" method).
+// Can be overridden by settings.is_production
+const everyoneCanPublish = false;
+
+// This is the default validators accounts and their initial stakes, which gets
+// added automatically to validators list during init process. If it's stake
+// value is lower than 1, it won't be added to list. If no default validators
+// are added, no one can create new blocks and blockchain won't run (except for
+// when "everyoneIsValidator" is set to true).
+const defaultValidatorsAccounts = new Map<string, u64>()
+    .set('<Node ID>', 1);
 
 // Id of the accont to which eventual reminders of consume_fuel goes. Once
 // enough reminders have been accumulated, they can be redistributed manually by
@@ -75,22 +104,6 @@ const THIS_URL = 'https://affidaty.io';
 // be used in a mint/burn/transfer transaction with fuel asset. Operations with
 // other assets are still possible.
 const remainderAccount = 'leaks';
-
-// If the parameter below is set to true, everyone can publish their own smart contracts.
-// Otherwise you have to be an admin or your smart contract's hash should be preauthorized
-// by an admin ("add_preapproved_contract" method).
-const everyoneCanPublish = false;
-
-// if this is set to true, service smart contract can be updated by updateServiceSmartContract method
-const thisCanBeUpdated = true;
-
-// This is the default validators accounts and their initial stakes, which gets
-// added automatically to validators list during init process. If it's stake
-// value is lower than 1, it won't be added to list. If no default validators
-// are added, no one can create new blocks and blockchain won't run.
-const defaultValidatorsAccounts = new Map<string, u64>()
-    .set('<Node ID>', 1);
-
 
 // Here you can set immutable blockchain parameters
 function getSettingsObject(): BlockchainSettings {
@@ -102,6 +115,8 @@ function getSettingsObject(): BlockchainSettings {
     settings.block_threshold = 100;
     settings.block_timeout = 10;
     settings.burning_fuel_method = 'consume_fuel';
+    settings.is_production = true;
+    settings.min_node_version = '0.2.6'
 
     return settings;
 }
@@ -188,7 +203,6 @@ export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i
     methodsMap.set('redistribute_remainders', redistributeRemainders);
 
     if (!methodsMap.has(ctx.method)) {
-        let test: string = '';
         let success = false;
         let resultBytes = sdk.Utils.stringtoU8Array('Method not found.');
         return sdk.MsgPack.appOutputEncode(success, resultBytes);
@@ -383,6 +397,9 @@ function contractRegistrationInternal(ctx: sdk.Types.AppContext, args: ContractR
 
 // checks whether an account is also admin
 function isAdmin(accId: string): bool {
+    if(everyoneIsAdmin) {
+        return true;
+    }
     if(accId == thisAccount) {
         return true;
     }
@@ -457,18 +474,21 @@ function removeAdmins(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombi
 }
 
 function isValidator(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombinedPtr {
+    if (everyoneIsValidator) {
+        return sdk.MsgPack.appOutputEncode(true, trueBytes);
+    }
     let acc = deserializeString(argsU8);
     let internalResult = isValidatorInternal(acc);
     return sdk.MsgPack.appOutputEncode(internalResult.success, internalResult.result);
 }
 
 function isValidatorInternal(account: string): RawAppOutput {
-    let result: u8[] = [0xc3];
+    let result: u8[] = trueBytes;
     let validatorKey = `${blockchainValidatorsSectionKey}:${account}`;
     let validatorBytes = sdk.HostFunctions.loadData(validatorKey);
     if (validatorBytes.length < 1) {
         if (defaultValidatorsAccounts.keys().indexOf(account) < 0) {
-            result = [0xc2]
+            result = falseBytes
         }
     }
     return new RawAppOutput(true, result);
@@ -685,6 +705,9 @@ function consumeFuel(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombin
     if(ctx.caller != ctx.owner) {
         return sdk.MsgPack.appOutputEncode(false, sdk.Utils.stringtoU8Array(Errors.NOT_AUTHORIZED));
     }
+    if (!fuelConsumptionActive) {
+        return sdk.MsgPack.appOutputEncode(true, [0xc3]);
+    }
     let args = sdk.MsgPack.deserialize<ConsumeFuelArgs>(argsU8);
     // if transaction was performed by myself, do nothing. otherwise it's a loop
     if (args.from == ctx.owner) {
@@ -695,20 +718,21 @@ function consumeFuel(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombin
 }
 
 function consumeFuelInternal(from: string, units: u64): RawAppOutput {
-    let resultBytes: u8[] = trueBytes;
-
+    let result = new ConsumeFuelReturn(true, 0);
     //check supplier's balance
     const fromBalance = readBalance(from);
 
     // if supplier has less than needed, then burn that amount
-    // also transaction won't pe executed because of the "false" return
+    // also transaction won't be executed because of the "false" return
     let unitsToBurn = units;
+    result.fuelConsumed = unitsToBurn;
     if (unitsToBurn > fromBalance) {
         unitsToBurn = fromBalance;
-        resultBytes = falseBytes;
+        result.txPassed = false;
+        result.fuelConsumed = unitsToBurn;
     }
     if (unitsToBurn <= 0) {
-        return new RawAppOutput(true, resultBytes);
+        return new RawAppOutput(true, serializeConsumeFuelReturn(result));
     }
 
     const validatorsKeysList: string[] = sdk.HostFunctions.getKeys(`${blockchainValidatorsSectionKey}:*`);
@@ -749,13 +773,13 @@ function consumeFuelInternal(from: string, units: u64): RawAppOutput {
 
     // minting gas directly to validators
     for (let i = 0; i < unitsToAdd.length; i++) {
-        mintInternal(validatorsAccounts[i], unitsToAdd[i]);
+        mintInternal(validatorsAccounts[i], unitsToAdd[i], false);
     }
     // minting remainder to a specially designated account
     if (remainder > 0) {
-        mintInternal(remainderAccount, remainder);
+        mintInternal(remainderAccount, remainder, false);
     }
-    return new RawAppOutput(true, resultBytes);
+    return new RawAppOutput(true, serializeConsumeFuelReturn(result));
 }
 
 function redistributeRemainders(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombinedPtr {
