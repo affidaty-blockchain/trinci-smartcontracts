@@ -82,21 +82,6 @@ fn get_account_contract(test_info: &AccountInfo, account_id: &str) -> Transactio
         args,
     )
 }
-// Hash Algorithms available
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, PartialEq, Clone))]
-pub enum HashAlgorithm {
-    Sha256,
-    Sha384,
-}
-// Hash arguments
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, PartialEq, Clone))]
-pub struct HashArgs<'a> {
-    pub algorithm: HashAlgorithm,
-    #[serde(with = "serde_bytes")]
-    pub data: &'a [u8],
-}
 
 fn echo_generic_tx(owner_info: &AccountInfo, user_info: &AccountInfo) -> Transaction {
     let args = value! ({

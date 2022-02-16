@@ -54,7 +54,7 @@ pub struct TestApp {
 
 impl Default for TestApp {
     fn default() -> Self {
-        TestApp::new(&common::apps_path())
+        TestApp::new(&common::apps_path(), true)
     }
 }
 
@@ -93,7 +93,7 @@ fn register_modules_on_service_account(apps_path: &str, db: &mut RocksDb) {
 }
 
 impl TestApp {
-    pub fn new(apps_path: &str) -> Self {
+    pub fn new(apps_path: &str, is_production: bool) -> Self {
         logger_setup();
 
         let path = TempDir::new().unwrap().into_path();
@@ -104,7 +104,8 @@ impl TestApp {
             register_modules_on_service_account(apps_path, &mut db);
         }
 
-        let wm = WmLocal::new(3);
+        let mut wm = WmLocal::new(3);
+        wm.set_mode(is_production);
 
         let keypair = create_keypair();
         let account_id = keypair.public_key().to_account_id();

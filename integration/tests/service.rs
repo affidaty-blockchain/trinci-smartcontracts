@@ -51,9 +51,9 @@ lazy_static! {
         map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3));
         map
     };
-    static ref TEST_APP_HASH: Hash = common::app_hash("test.wasm").unwrap();
-    static ref TEST_APP_HASH_HEX: String = hex::encode(&TEST_APP_HASH.as_bytes());
-    static ref TEST_APP_BIN: Vec<u8> = common::app_read("test.wasm").unwrap();
+    static ref CRYPTO_APP_HASH: Hash = common::app_hash("crypto.wasm").unwrap();
+    static ref CRYPTO_APP_HASH_HEX: String = hex::encode(&CRYPTO_APP_HASH.as_bytes());
+    static ref CRYPTO_APP_BIN: Vec<u8> = common::app_read("crypto.wasm").unwrap();
     static ref SERVICE_APP_BIN: Vec<u8> = common::app_read("service.wasm").unwrap();
     static ref SERVICE_APP_HASH_HEX: String = hex::encode(&SERVICE_APP_HASH.as_bytes());
     static ref CONTRACTS_DATA: Value = {
@@ -92,7 +92,7 @@ fn create_contract_registration_tx(caller_info: &AccountInfo) -> Transaction {
         "version": "0.1.0",
         "description": "This is my personal contract",
         "url": "http://www.mycontract.org",
-        "bin": SerdeValue::Bytes(TEST_APP_BIN.clone()),
+        "bin": SerdeValue::Bytes(CRYPTO_APP_BIN.clone()),
     });
 
     common::create_test_tx(
@@ -117,7 +117,7 @@ fn asset_init_tx(asset_info: &AccountInfo) -> Transaction {
         &asset_info.id,
         &asset_info.pub_key,
         &asset_info.pvt_key,
-        *TEST_APP_HASH,
+        *CRYPTO_APP_HASH,
         "init",
         args,
     )
@@ -157,7 +157,7 @@ fn check_contract_registration_rxs_first(rxs: Vec<Receipt>) {
     // 2. Register the contract.
     assert!(rxs[2].success);
     let contract_hash: String = rmp_deserialize(&rxs[2].returns).unwrap();
-    assert_eq!(*TEST_APP_HASH_HEX, contract_hash);
+    assert_eq!(*CRYPTO_APP_HASH_HEX, contract_hash);
 }
 
 fn check_contract_registration_rxs_second(rxs: Vec<Receipt>) {
@@ -179,7 +179,7 @@ fn check_contract_registration_rxs_second(rxs: Vec<Receipt>) {
 #[test]
 fn test_contract_registration() {
     // Instance the application without contracts pre-registration.
-    let mut app = TestApp::new("");
+    let mut app = TestApp::new("", true);
 
     // Create and store the service account.
     create_service_account(&mut app);
@@ -199,13 +199,13 @@ fn test_contract_registration() {
     // Blockchain check.
 
     let mut code_key = String::from("contracts:metadata:");
-    code_key.push_str(&TEST_APP_HASH_HEX);
+    code_key.push_str(&CRYPTO_APP_HASH_HEX);
 
     let contract_data = app.account_data(SERVICE_ID, &code_key).unwrap();
     let contract_data: Value = rmp_deserialize(&contract_data).unwrap();
     assert_eq!(contract_data, *CONTRACTS_DATA);
 
-    let contract_bin_exp = &*TEST_APP_BIN;
+    let contract_bin_exp = &*CRYPTO_APP_BIN;
     let contract_id = hex::encode(Hash::from_data(HashAlgorithm::Sha256, contract_bin_exp));
     let mut code_key = String::from("contracts:code:");
     code_key.push_str(&contract_id);
