@@ -1,0 +1,37 @@
+image: affidaty/rust-buster-builder
+
+stages:
+    - lints
+    - build
+    - test
+
+lints:
+    stage: lints
+    script:
+        - cd apps-rs && ./cargo_broadcast.sh fmt -- --check && cd -
+        - cd apps-rs && ./cargo_broadcast.sh clippy -- -D warnings && cd -
+
+build:
+    stage: build
+    dependencies:
+        - lints
+    script:
+        - cd apps-rs && ./cargo_broadcast.sh build && cd -
+
+unit_test:
+    stage: test
+    dependencies:
+        - build
+    script:
+        - cd apps-rs && ./cargo_broadcast.sh test && cd -
+
+
+integration_test:
+    stage: test
+    only:
+        - develop
+    dependencies:
+        - build
+    script:
+        - cd integration && cargo test && cd -
+
