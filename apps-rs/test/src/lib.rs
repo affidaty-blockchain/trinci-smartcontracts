@@ -55,6 +55,8 @@ trinci_sdk::app_export!(
     test_sha256,
     test_get_account_contract,
     secure_call_test,
+    test_hf_drand,
+    test_hf_is_callable,
     // Trigger exceptional conditions.
     divide_by_zero,
     trigger_panic,
@@ -184,6 +186,16 @@ fn test_sha256(_ctx: AppContext, data: PackedValue) -> WasmResult<Vec<u8>> {
 /// Call the host function hf_get_account_contract
 fn test_get_account_contract(_ctx: AppContext, account_id: &str) -> WasmResult<Vec<u8>> {
     Ok(trinci_sdk::get_account_contract(account_id))
+}
+
+/// Call the host function hf_drand
+fn test_hf_drand(_ctx: AppContext, args: u64) -> WasmResult<u64> {
+    Ok(trinci_sdk::drand(args))
+}
+
+/// Call the host function hf_drand
+fn test_hf_is_callable(ctx: AppContext, method: &str) -> WasmResult<bool> {
+    Ok(trinci_sdk::is_callable(ctx.owner, method))
 }
 
 /// Call the host function hf_transfer
@@ -462,6 +474,7 @@ mod tests {
             from: CALLER_ID,
             to: "abcdef",
             units: 3,
+            data: None,
         };
 
         not_wasm::call_wrap(transfer, ctx, args).unwrap();
@@ -485,6 +498,7 @@ mod tests {
             from: CALLER_ID,
             to: "abcdef",
             units: 10,
+            data: None,
         };
 
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
@@ -702,5 +716,14 @@ mod tests {
         };
         let err = not_wasm::call_wrap(secure_call_test, ctx, args).unwrap_err();
         assert_eq!(err.to_string(), "incompatible contract app");
+    }
+
+    #[test]
+    fn test_drand() {
+        let ctx = not_wasm::create_app_context(OWNER_ID, CALLER_ID);
+
+        let args = 100;
+        let res = not_wasm::call_wrap(test_hf_drand, ctx, args).unwrap();
+        assert_eq!(res, args / 2);
     }
 }

@@ -33,8 +33,8 @@ const TEST2_ALIAS: &str = "Test2";
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
-        map.insert(TEST_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1));
-        map.insert(TEST2_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2));
+        map.insert(TEST_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, false));
+        map.insert(TEST2_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, true));
         map
     };
 }
@@ -42,6 +42,29 @@ lazy_static! {
 lazy_static! {
     pub static ref TEST_APP_HASH: Hash = app_hash("test.wasm").unwrap();
     pub static ref TEST2_APP_HASH: Hash = app_hash("service.wasm").unwrap();
+}
+
+fn init_tx(test_info: &AccountInfo) -> Transaction {
+    let args = value!(null);
+    common::create_test_tx(
+        &test_info.id,
+        &test_info.pub_key,
+        &test_info.pvt_key,
+        *TEST_APP_HASH,
+        "init",
+        args,
+    )
+}
+fn drand_tx(test_info: &AccountInfo, max: u64) -> Transaction {
+    let args = value!(max);
+    common::create_test_tx(
+        &test_info.id,
+        &test_info.pub_key,
+        &test_info.pvt_key,
+        *TEST_APP_HASH,
+        "test_hf_drand",
+        args,
+    )
 }
 
 fn store_data_tx(test_info: &AccountInfo, key: &str, data: &[u8]) -> Transaction {
@@ -71,7 +94,7 @@ fn get_account_keys_tx(test_info: &AccountInfo, pattern: &str) -> Transaction {
     )
 }
 
-fn get_account_contract(test_info: &AccountInfo, account_id: &str) -> Transaction {
+fn get_account_contract_tx(test_info: &AccountInfo, account_id: &str) -> Transaction {
     let args = account_id;
     common::create_test_tx(
         &test_info.id,
@@ -79,6 +102,18 @@ fn get_account_contract(test_info: &AccountInfo, account_id: &str) -> Transactio
         &test_info.pvt_key,
         *TEST_APP_HASH,
         "test_get_account_contract",
+        args,
+    )
+}
+
+fn is_callable_tx(test_info: &AccountInfo, account_id: &str) -> Transaction {
+    let args = account_id;
+    common::create_test_tx(
+        &test_info.id,
+        &test_info.pub_key,
+        &test_info.pvt_key,
+        *TEST_APP_HASH,
+        "test_hf_is_callable",
         args,
     )
 }
@@ -161,9 +196,9 @@ fn create_txs() -> Vec<Transaction> {
         // 11. Get keys with wildcard pattern.
         get_account_keys_tx(test_info, "*"),
         // 12. Get test account contract.
-        get_account_contract(test_info, &test_info.id),
+        get_account_contract_tx(test_info, &test_info.id),
         // 13. Get test not existing account contract.
-        get_account_contract(test_info, "not-existing"),
+        get_account_contract_tx(test_info, "not-existing"),
         // 14. Secure call on not existing account
         secure_call(
             test_info,
@@ -180,10 +215,14 @@ fn create_txs() -> Vec<Transaction> {
         ),
         // 16. Call Echo generic on the new account
         echo_generic_tx(test2_info, test_info),
+        // 17. Call is_callable with valid method
+        is_callable_tx(test2_info, "test_hf_drand"),
+        // 18. Call is_callable with not valid method. This shall fail.
+        is_callable_tx(test2_info, "not_existent"),
     ]
 }
 
-fn check_basic_rxs(rxs: Vec<Receipt>) {
+fn check_rxs(rxs: Vec<Receipt>) {
     // 0. Get keys with empty pattern. This shall fail
     assert!(!rxs[0].success);
     assert_eq!(
@@ -261,7 +300,7 @@ fn check_basic_rxs(rxs: Vec<Receipt>) {
     // 15. Secure call with wrong hash
     assert!(!rxs[15].success);
     assert_eq!(
-        "smart contract fault: resource not found: incompatible contract app",
+        "smart contract fault: invalid contract hash: cannot bind the contract to the account",
         String::from_utf8_lossy(&rxs[15].returns)
     );
     // 16. Call Echo generic on the new account
@@ -271,6 +310,14 @@ fn check_basic_rxs(rxs: Vec<Receipt>) {
         "greet": "hello!"
     });
     assert_eq!(expected, res);
+    // 17. Call is_callable with valid method
+    assert!(rxs[17].success);
+    let res = rmp_deserialize::<bool>(&rxs[17].returns).unwrap();
+    assert!(res);
+    // 18. Call is_callable with not valid method. This shall fail.
+    assert!(rxs[18].success);
+    let res = rmp_deserialize::<bool>(&rxs[18].returns).unwrap();
+    assert!(!res);
 }
 
 #[test]
@@ -281,5 +328,48 @@ fn test_contract() {
     // Create and execute transactions.
     let txs = create_txs();
     let rxs = app.exec_txs(txs);
-    check_basic_rxs(rxs);
+    check_rxs(rxs);
+}
+
+fn create_drand_txs() -> Vec<Transaction> {
+    let test_info = ACCOUNTS_INFO.get(TEST_ALIAS).unwrap();
+
+    vec![
+        // 0. Init The test contract
+        init_tx(test_info),
+        // 1. Get a random number
+        drand_tx(test_info, 150),
+        // 2. Get a random number
+        drand_tx(test_info, 10),
+        // 3. Get a random number
+        drand_tx(test_info, 1233410),
+    ]
+}
+
+fn check_drand_rxs(rxs: Vec<Receipt>) {
+    // 0. Init The test contract
+    assert!(rxs[0].success);
+    // 1. Get a random number
+    assert!(rxs[1].success);
+    let res = rmp_deserialize::<u64>(&rxs[1].returns).unwrap();
+    assert_eq!(res, 141);
+    // 2. Get a random number
+    assert!(rxs[2].success);
+    let res = rmp_deserialize::<u64>(&rxs[2].returns).unwrap();
+    assert_eq!(res, 0);
+    // 3. Get a random number
+    assert!(rxs[3].success);
+    let res = rmp_deserialize::<u64>(&rxs[3].returns).unwrap();
+    assert_eq!(res, 958283);
+}
+
+#[test]
+fn test_drand() {
+    // Instance the application.
+    let mut app = TestApp::default();
+
+    // Create and execute transactions.
+    let txs = create_drand_txs();
+    let rxs = app.exec_txs(txs);
+    check_drand_rxs(rxs);
 }

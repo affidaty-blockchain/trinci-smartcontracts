@@ -54,7 +54,7 @@ pub struct TestApp {
 
 impl Default for TestApp {
     fn default() -> Self {
-        TestApp::new(&common::apps_path(), true)
+        TestApp::new(&common::apps_path())
     }
 }
 
@@ -73,27 +73,38 @@ fn is_validator_function_temporary() -> impl IsValidator {
 }
 
 // Register all the wasm module found in apps_path in the service account
-fn register_modules_on_service_account(apps_path: &str, db: &mut RocksDb) {
+fn register_service_and_modules_on_service_account(apps_path: &str, db: &mut RocksDb) {
     let mut fork = db.fork_create();
 
     let mut pattern = String::from(apps_path);
     pattern.push_str("/*.wasm");
 
     for entry in glob(&pattern).unwrap().flatten() {
-        let mut wasm_file = std::fs::File::open(entry).unwrap();
+        let mut wasm_file = std::fs::File::open(&entry).unwrap();
         let mut bin = Vec::new();
         std::io::Read::read_to_end(&mut wasm_file, &mut bin).expect("loading bootstrap");
 
         let hash = Hash::from_data(HashAlgorithm::Sha256, &bin);
+
+        if entry.to_string_lossy().contains("service.wasm") {
+            let account = Account::new(SERVICE_ACCOUNT_ID, Some(hash));
+            fork.store_account(account);
+        }
+
         let mut key = String::from("contracts:code:");
         key.push_str(&hex::encode(&hash));
         fork.store_account_data(SERVICE_ACCOUNT_ID, &key, bin);
+
+        let mut key = String::from("contracts:metadata:");
+        key.push_str(&hex::encode(hash.as_bytes()));
+
+        fork.store_account_data(SERVICE_ACCOUNT_ID, &key, vec![0, 1, 2]);
     }
     db.fork_merge(fork).unwrap();
 }
 
 impl TestApp {
-    pub fn new(apps_path: &str, is_production: bool) -> Self {
+    pub fn new(apps_path: &str) -> Self {
         logger_setup();
 
         let path = TempDir::new().unwrap().into_path();
@@ -101,11 +112,10 @@ impl TestApp {
 
         // Store the smart contracts on the db
         if !apps_path.is_empty() {
-            register_modules_on_service_account(apps_path, &mut db);
+            register_service_and_modules_on_service_account(apps_path, &mut db);
         }
 
-        let mut wm = WmLocal::new(3);
-        wm.set_mode(is_production);
+        let wm = WmLocal::new(10);
 
         let keypair = create_keypair();
         let account_id = keypair.public_key().to_account_id();
@@ -198,7 +208,7 @@ impl TestApp {
 
     // Execute transactions set and wait for receipts.
     pub fn exec_txs(&mut self, txs: Vec<Transaction>) -> Vec<Receipt> {
-        const MAX_TRIALS: usize = 32;
+        const MAX_TRIALS: usize = 42 * 2;
         const RETRY_PERIOD: Duration = Duration::from_secs(3);
 
         let hashes = self.put_transactions(txs);

@@ -17,7 +17,10 @@
 
 import { Decoder, Encoder, Sizer } from '@wapc/as-msgpack';
 import { Utils } from '../node_modules/@affidaty/trinci-sdk-as'
-import { ConsumeFuelReturn } from './types';
+import {
+    ConsumeFuelReturn,
+    ContractUpdatableArgs,
+} from './types';
 
 export function deserializeStringArray(u8Arr: u8[]): string[] {
     let result: string[] = [];
@@ -97,4 +100,17 @@ export function serializeConsumeFuelReturn(arg: ConsumeFuelReturn): u8[] {
     encoder.writeBool(arg.txPassed);
     encoder.writeUInt64(arg.fuelConsumed);
     return Utils.arrayBufferToU8Array(ab);
+}
+
+export function deserializeContractUpdatableArgs(u8Arr: u8[]): ContractUpdatableArgs {
+    let result = new ContractUpdatableArgs();
+    let ab = Utils.u8ArrayToArrayBuffer(u8Arr);
+    let decoder = new Decoder(ab);
+    decoder.readArraySize();
+    result.account = decoder.readString();
+    let currentContractBinHash = decoder.readByteArray();
+    let newContractBinHash = decoder.readByteArray();
+    result.currentContract = Utils.arrayBufferToHexString(currentContractBinHash);
+    result.newContract = Utils.arrayBufferToHexString(newContractBinHash);
+    return result;
 }

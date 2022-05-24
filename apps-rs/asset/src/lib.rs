@@ -17,7 +17,7 @@
 
 //! Basic Asset
 //!
-//! Asset smart contract exposing a fairly standard behavior.
+//! Asset smart contract exposing a fairly standard behaviour.
 //! The interface respects the TAI interface.
 //!
 //! ### Rules
@@ -241,7 +241,7 @@ fn transfer(ctx: AppContext, args: TransferArgs) -> WasmResult<()> {
 
 /// Lock the asset.
 ///
-/// A locked asset cannot be moved from or into the accout.
+/// A locked asset cannot be moved from or into the account.
 /// The lock type is inferred from the caller.
 /// Rules:
 ///  - owner can't unlock an asset locked by a contract or the asset creator.
@@ -598,6 +598,7 @@ mod tests {
             from: CALLER_ID,
             to: DESTINATION_ID,
             units: 30,
+            data: None,
         };
 
         not_wasm::call_wrap(transfer, ctx, args).unwrap();
@@ -617,6 +618,7 @@ mod tests {
             from: CALLER_ID,
             to: DESTINATION_ID,
             units: 30,
+            data: None,
         };
 
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
@@ -637,6 +639,7 @@ mod tests {
             from: CALLER_ID,
             to: DESTINATION_ID,
             units: 30,
+            data: None,
         };
 
         not_wasm::call_wrap(transfer, ctx, args).unwrap();
@@ -664,6 +667,7 @@ mod tests {
             from: CALLER_ID,
             to: DESTINATION_ID,
             units: 30,
+            data: None,
         };
 
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
@@ -684,6 +688,7 @@ mod tests {
             from: CALLER_ID,
             to: DESTINATION_ID,
             units: 5,
+            data: None,
         };
 
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
@@ -704,6 +709,7 @@ mod tests {
             from: CALLER_ID,
             to: DESTINATION_ID,
             units: 5,
+            data: None,
         };
 
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
@@ -1058,6 +1064,7 @@ mod tests {
             from: OWNER_ID,
             to: DESTINATION_ID,
             units: 42,
+            data: None,
         };
 
         not_wasm::call_wrap(transfer, ctx, args).unwrap();
@@ -1095,6 +1102,7 @@ mod tests {
             from: OWNER_ID,
             to: DESTINATION_ID,
             units: 42,
+            data: None,
         };
 
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();
@@ -1126,6 +1134,7 @@ mod tests {
             from: OWNER_ID,
             to: DESTINATION_ID,
             units: 42,
+            data: None,
         };
 
         not_wasm::call_wrap(transfer, ctx, args).unwrap();
@@ -1163,6 +1172,7 @@ mod tests {
             from: OWNER_ID,
             to: DESTINATION_ID,
             units: 42,
+            data: None,
         };
 
         let err = not_wasm::call_wrap(transfer, ctx, args).unwrap_err();

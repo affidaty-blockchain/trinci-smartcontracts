@@ -26,6 +26,16 @@ Additional labels for pre-release metadata:
 * beta.x: shipped version under testing.
 * rc.x: stable release candidate.
 
+0.2.4 - 22-03-2022
+------------------
+Added
+* hf_is_callable test method
+
+0.2.3 - 23-02-2022
+------------------
+
+Added
+* DRAND test method to test contract
 
 0.2.2 - 02-02-2022
 ------------------
@@ -49,7 +59,7 @@ Added
 Changed
 * updated trinci sdk
 * rust version 2021
-* renamed alloc in rust sdk
+* renamed `alloc` in rust sdk
 
 
 0.1.2 - 13-10-2021
@@ -68,7 +78,7 @@ Added
   * random_sequence,
   * return_hashmap,
   * get_time
-* added mint method for integration test purpouse
+* added mint method for integration test purpose
 
 
 0.1.1 - 13-09-2021

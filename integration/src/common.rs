@@ -15,24 +15,31 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with TRINCI. If not, see <https://www.gnu.org/licenses/>.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 pub use serde_value::{value, Value as SerdeValue};
-use std::{fs::File, io::Read, path::Path};
+use std::{collections::HashMap, fs::File, io::Read, path::Path};
 use trinci_core::{
     base::{
         schema::{
             BulkTransaction, BulkTransactions, SignedTransaction, TransactionData,
             TransactionDataBulkNodeV1, TransactionDataBulkV1, UnsignedTransaction,
         },
-        serialize::rmp_serialize,
+        serialize::{rmp_deserialize, rmp_serialize},
     },
     crypto::{ecdsa, Hash, HashAlgorithm, KeyPair, PublicKey},
-    Account, Transaction, TransactionDataV1,
+    Account, Receipt, Transaction, TransactionDataV1,
 };
-use trinci_sdk::rmp_serialize_named;
-pub use trinci_sdk::tai::{Asset, AssetLockArgs, LockPrivilege, LockType};
+pub use trinci_sdk::tai::AssetLockArgs;
+use trinci_sdk::{rmp_serialize_named, tai::AssetTransferArgs, Serializable};
 
-// Various keypairs used for testing
+/// Result struct for bulk transaction
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BulkResult {
+    success: bool,
+    result: Vec<u8>,
+}
+
+// Various keypair used for testing
 
 pub const PUB_KEY1: &str = "045936d631b849bb5760bcf62e0d1261b6b6e227dc0a3892cbeec91be069aaa25996f276b271c2c53cba4be96d67edcadd66b793456290609102d5401f413cd1b5f4130b9cfaa68d30d0d25c3704cb72734cd32064365ff7042f5a3eee09b06cc1";
 pub const PVT_KEY1: &str = "818f1a16382f219b9284442687420caa12a60d8945c93dca6d28e81f1597e6d8abcec81a2dca0fe6eae838891c1b7157";
@@ -58,6 +65,12 @@ pub const PVT_KEY7: &str = "fa646fa1f6d3b876b0f57700d0134d11fd1913073092e23f3df7
 pub const PUB_KEY8: &str = "044717583406373a9b47f564e6af4c28d9bc45b11da5de0fdfcd9928dab12eaacaedfabc7357565f2ecfa222f4b4e654a727397c3cad00a2af4c21defe5a0b403d3e62390b71633b203c268fd35ffe2e83fc7c602c2ae19274707a96f579e5439e";
 pub const PVT_KEY8: &str = "f9a2619f076ca99870bb90b4faf63a9ddedc031b07a1f2ea82305b71dc43d040b64ff56af043c887a24f5c4148b15dad";
 
+pub const PUB_KEY9: &str = "04e4f83adcc05ebcc76b815d070486563dcf228ab6875d5e7a8ddca1ae09799662c1fd5036ad4eaa7dc5e43104e3f539b6c7a902f76753c4238ac1a227faee71e8442043e17a3491a957fad2e196a3212b1ee8172642f7523d698959a27a1e2e27";
+pub const PVT_KEY9: &str = "e833950f5be0531bbf8627deb341613f40e19fdeb27138244c61326146bb651b60e6cbeed7246e74760dc097e011d0b3";
+
+pub const PUB_KEY10: &str = "040183c99d986fde743383e4f203ce800664a08f33acb07ad5a2be8e49eeff36564c0dbf4f95ed059d29781730717d58ce28075834cc9e95429b49810819b1dd0ca7f27048c9bb5e0b6aafd438024a678905c2cec5655287089cfbdf1a4cd86e96";
+pub const PVT_KEY10: &str = "0c7909ca207f08a8e1cacbf845fdde191cb9fb16513b458675b381c101fe0d8d8d3c933128290cc2c104d4886aa42203";
+
 pub const PKCS8_01: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a4020101043072903f41e56843227c479c012994be571d7bf0cf083cb154a369c4008a8709b04f625ee86f281a4b7e4f445b52aaf043a00706052b81040022a16403620004677ab1f2832bfec85ec98b96854db0091b02421d0871ac56f0ff2388e9aad26c486df10a286fda1b2a6955ec283e601580a39cbbad059b778f3af5d4a5fd6b36a2d16bf66fac5630c4778e0cbc3efe025fb492bcb8245e9781c880314fa8aed4";
 pub const PKCS8_02: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308054283d0eb1af7b1e8349e5f694208342762fcb0c9386cf1fa87f9985bb73a02cfeddccc26ed6fe15d8da019493537ba00706052b81040022a164036200041174cc62f48c0f105a54255291247617ab7983de0ae08c6a26afb28ce04cd76525fa48e75d7cef1e16e165c500e1aba6beb4c2fdbf2e8f8237c1075cb498c32e00d4ab4c37d8bf3ff4a359c8917519015bddf1038e0105fe928f74b31f4f9185";
 pub const PKCS8_03: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430b0394ba13c3f916137a902f1b5e4ef6e1e2b2c8b7c3ef9a39eac68b6c52a3927b5ad0e0ff3ef00a0c551d3b954738e32a00706052b81040022a164036200048cfc38a74cfce0ed3f85d44fbefe14e20238049215573a59f4232098696679d616258041a176ba9f5188ad45c7a6b45b1352a87ac5f2987fc68b96fa63e432536c506dad03088888d70617152bea5107ba4ade8a69d030fd392000eb1a324038";
@@ -67,7 +80,8 @@ pub const PKCS8_06: &str = "3081bf020100301006072a8648ce3d020106052b810400220481
 pub const PKCS8_07: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104300f7d3838b4e8743e72df2c6df7139ee06a8218c0c29a028391c344470e8905bf4b6b283c432702ca53bcc842bbe9c4faa00706052b81040022a1640362000413cf363d9c7d9cbc6a72878c1293f979a443520663ea4d9dd2fa5a442e9693958b36ea4d09c78391a595ef4997ce7bfe8d4a2fa46a850078033e2e1ebc05c9d0670577f15ce35eb7b9ecbbc27aac47f8e87181471b566188a060236123826364";
 pub const PKCS8_08: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104305e9e56c0d18bd775806d0561bbd1a4a72c587f3110d87e6645a44a0a71bbc7e77ae5bf381e6df0026406b46b08ee8a75a00706052b81040022a16403620004a4ec78e0fd5bf731028dd339567d782b200c38426af7cc7d06e4e89bbfc5d47109af0871b51d818ec47aa818e09cb377ede2d261bc8ac61bce4d2884a4635ad8db142d8865032230930ab53caf2f13290b4baca69dc8b1d3595a4e213826ea83";
 pub const PKCS8_09: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a402010104308f9d5bb2af6c8e6418c3099d209c112db9d7dcc1f946cafa7c072077402bc60fe9d37336f7a9a59f89f3b21c022e65a7a00706052b81040022a16403620004aa70ba3a9ae56a5032fd88040c6db8bb02d37f308c399b972a60caf7e4c14f01fff240fee1fe64498145d903e9f02c505aa8e188a29fd78b7a2769a0ea9aa7cb7016465d9c5d27a0f7d669187aec1205ba9f605c7473745a9e1bab3d6c72a57f";
-
+pub const PKCS8_10: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a4020101043080a68d4a323241210660a0659f8bae16b4899a894cf2adb1d069b38137e1f4763d7226e70de5d5952e639fe0c186739ea00706052b81040022a164036200048e84c4b599cfe6d92afe3be14d8b572c8d44fcd9f0ba67266f2d6fef97e61f11b12064aa539bbb5f52a3b9edcf00e5bee51d289a1d622850c2956e3a6e3587dac74409cbbde564e9d302bf8b777ff2804c4189944febd7fede44e3b29d6e8b06";
+pub const PKCS8_11: &str = "3081bf020100301006072a8648ce3d020106052b810400220481a73081a40201010430c4f56e0552da31b00043ce9ab6bc86be9cf54cbaa878c2fc0747cc8f00f4ffd4b33a3de21e947aebb7751fb0f847a9b3a00706052b81040022a164036200041b33e990f63c2c1153c9715cf2efca9bd184e4ba366687770f496a4bbffb7961a508068c9137f88c53bde9981be20782dd5702a1a0e9d83bbbdc7a4e87a234b91279bb9412d1fe1e68679261f39a7ae9ede67ddae24776d50b3e2a7960a70737";
 pub struct AccountInfo {
     pub id: String,
     pub pub_key: String,
@@ -75,12 +89,33 @@ pub struct AccountInfo {
 }
 
 impl AccountInfo {
-    pub fn new(pub_key: &str, pvt_key: &str) -> Self {
+    pub fn new(pub_key: &str, pvt_key: &str, nfa: bool) -> Self {
+        let mut id = String::new();
+        if nfa {
+            id.push('#');
+        }
+        id.push_str(&p384_hex_key_to_account_id(pub_key));
         AccountInfo {
-            id: p384_hex_key_to_account_id(pub_key),
+            id,
             pub_key: pub_key.to_owned(),
             pvt_key: pvt_key.to_owned(),
         }
+    }
+}
+
+pub struct KeyPairInfo {
+    pub id: String,
+    pub kp: KeyPair,
+}
+
+impl KeyPairInfo {
+    pub fn new(kp: KeyPair, nfa: bool) -> Self {
+        let mut id = String::new();
+        if nfa {
+            id.push('#');
+        }
+        id.push_str(&kp.public_key().to_account_id());
+        KeyPairInfo { id, kp }
     }
 }
 
@@ -89,11 +124,11 @@ pub fn create_test_tx_data(
     public_key: &str,
     contract_hash: Hash,
     method: &str,
-    args: impl Serialize,
+    args: impl Serializable,
 ) -> TransactionData {
     static mut MYNONCE: u64 = 0;
 
-    let args = rmp_serialize_named(&args).unwrap();
+    let args = Serializable::serialize(&args).unwrap();
 
     let nonce = unsafe {
         MYNONCE += 1;
@@ -117,7 +152,7 @@ pub fn create_test_tx(
     private_key: &str,
     target: Hash,
     method: &str,
-    args: impl Serialize,
+    args: impl Serializable,
 ) -> Transaction {
     let data = create_test_tx_data(id, public_key, target, method, args);
     let keypair = p384_hex_keypair_to_keypair(public_key, private_key);
@@ -353,4 +388,118 @@ pub fn app_read(name: &str) -> Option<Vec<u8>> {
     let filename = app_path(name);
     let path = Path::new(&filename);
     file_read(path)
+}
+
+pub fn print_error(rxs: &[Receipt], i: usize) {
+    println!("{}", String::from_utf8_lossy(&rxs[i].returns));
+}
+
+pub fn print_bulk_error(rxs: &[Receipt], i: usize) {
+    let map: HashMap<String, BulkResult> = rmp_deserialize(&rxs[i].returns).unwrap();
+    for (tx, result) in map {
+        match result.success {
+            true => println!("[{}] => {:?}", tx, result.result),
+            false => println!("[{}] => {:?}", tx, String::from_utf8_lossy(&result.result)),
+        }
+    }
+}
+
+// Advanced Asset Facilitators
+
+/// Initialize an advanced asset
+pub fn advanced_asset_init_tx(
+    asset_info: &AccountInfo,
+    caller_info: &AccountInfo,
+    max_units: u64,
+    fees: Option<(u64, Vec<u64>)>,
+    app_contract: Hash,
+) -> Transaction {
+    let (fixed_fees, fees_vec) = if let Some(fees) = fees {
+        fees
+    } else {
+        (0, vec![0u64, 100])
+    };
+
+    let args = value!({
+        "name": asset_info.id,
+        "description": "My Cool Coin",
+        "url": "https://fck.you",
+        "max_units": max_units,
+        "fees": fees_vec,
+        "fixed_fees": fixed_fees,
+        "fees_account": "#FEES"
+    });
+
+    create_test_tx(
+        &asset_info.id,
+        &caller_info.pub_key,
+        &caller_info.pvt_key,
+        app_contract,
+        "init",
+        args,
+    )
+}
+
+/// Mint some advanced asset to an account
+pub fn advanced_asset_mint_tx(
+    asset_info: &AccountInfo,
+    caller_info: &AccountInfo,
+    to_info: &AccountInfo,
+    units: u64,
+    app_contract: Hash,
+) -> Transaction {
+    let args = value!({
+        "to": to_info.id,
+        "units": units,
+    });
+    create_test_tx(
+        &asset_info.id,
+        &caller_info.pub_key,
+        &caller_info.pvt_key,
+        app_contract,
+        "mint",
+        args,
+    )
+}
+
+/// Burn some advanced asset to an account
+pub fn advanced_asset_burn_tx(
+    asset_info: &AccountInfo,
+    caller_info: &AccountInfo,
+    from_info: &AccountInfo,
+    units: u64,
+    app_contract: Hash,
+) -> Transaction {
+    let args = value!({
+        "from": from_info.id,
+        "units": units,
+    });
+    create_test_tx(
+        &asset_info.id,
+        &caller_info.pub_key,
+        &caller_info.pvt_key,
+        app_contract,
+        "burn",
+        args,
+    )
+}
+
+/// Advanced Asset transfer
+pub fn advanced_asset_transfer_tx(
+    asset_info: &AccountInfo,
+    caller_info: &AccountInfo,
+    transfer_args: AssetTransferArgs,
+    pay: bool,
+    app_contract: Hash,
+) -> Transaction {
+    let method = if pay { "pay" } else { "transfer" };
+
+    create_test_tx(
+        &asset_info.id,
+        &caller_info.pub_key,
+        &caller_info.pvt_key,
+        app_contract,
+        method,
+        transfer_args,
+    )
 }

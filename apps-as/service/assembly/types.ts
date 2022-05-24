@@ -103,11 +103,27 @@ export class FuelAssetStats {
 }
 
 export class ConsumeFuelReturn {
-    txPassed: bool = false;
-    fuelConsumed: u64 = 0;
+    txPassed: bool;
+    fuelConsumed: u64;
 
     constructor(passed: bool = false, consumed: u64 = 0) {
         this.txPassed = passed;
         this.fuelConsumed = consumed;
+    }
+}
+
+export class ContractUpdatableArgs {
+    account: string;
+    currentContract: string;
+    newContract: string;
+
+    constructor(
+        account: string = '',
+        currentContract: string = '',
+        newContract: string = '',
+    ) {
+        this.account = account;
+        this.currentContract = currentContract;
+        this.newContract = newContract;
     }
 }

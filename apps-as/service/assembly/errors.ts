@@ -5,3 +5,4 @@ export const SAME_CONTRACT_HASH = 'This smart contract has already been publishe
 export const SAME_CONTRACT_NAME_VER = 'Smart contract with the same name and version has already been published.';
 export const UPDATE_NOT_ENABLED = 'Service smart contract update disabled.';
 export const INIT_DONE = 'Already initialized.';
+export const UNKNOWN_CONTRACT = 'Unknown contract.';

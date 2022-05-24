@@ -31,6 +31,7 @@ import {
     IsDelegatedToArgs,
     FuelAssetStats,
     ConsumeFuelReturn,
+    ContractUpdatableArgs,
 } from './types';
 import {
     deserializeStringArray,
@@ -41,6 +42,7 @@ import {
     deserializeValidatorsMap,
     serializeString,
     serializeConsumeFuelReturn,
+    deserializeContractUpdatableArgs,
 } from './msgpack';
 
 const trueBytes: u8[] = [0xc3];
@@ -67,8 +69,13 @@ const THIS_VERSION = '1.0.0';
 const THIS_DESCRIPTION = 'Service smart contract';
 const THIS_URL = 'https://affidaty.io';
 
-// if this is set to true, service smart contract can be updated by
-// updateServiceSmartContract method
+// If network is in test mode then any account can be linked to any smart
+// contract at any moment. This settings does not override "thisCanBeUpdated"
+// setting. So that service smart contract update can still be inhibited.
+const networkIsInTestMode = false;
+
+// if this is set to true, service smart contract can be updated.
+// This setting is independent of networkIsInTestMode
 const thisCanBeUpdated = true;
 
 // This parameter determines whether every transaction comsumes an amount of fuel or not
@@ -114,10 +121,9 @@ function getSettingsObject(): BlockchainSettings {
     settings.accept_broadcast = false;
     settings.block_threshold = 100;
     settings.block_timeout = 10;
-    settings.burning_fuel_method = 'consume_fuel';
+    settings.burning_fuel_method = fuelConsumptionActive ? 'consume_fuel' : '';
     settings.is_production = true;
-    settings.min_node_version = '0.2.6'
-
+    settings.min_node_version = '0.2.6';
     return settings;
 }
 
@@ -139,37 +145,6 @@ export function alloc(size: i32): i32 {
     return heap.alloc(size) as i32;
 }
 
-function arrayBufferToHexString(ab: ArrayBuffer): string {
-    let result: string = '';
-    let dataView = new DataView(ab);
-    for (let i = 0; i < dataView.byteLength; i++) {
-        let byteStr = dataView.getUint8(i).toString(16);
-        for (let i = 0; i < 2 - byteStr.length; i++) {
-            byteStr = '0' + byteStr;
-        }
-        result += byteStr;
-    }
-    return result;
-}
-
-function isDelegatedTo(delegator: string, delegate: string, action: string, data: u8[]): bool {
-    let result = false;
-    let callArgs = new IsDelegatedToArgs();
-    callArgs.delegate = delegate;
-    callArgs.action = action;
-    callArgs.data = sdk.Utils.u8ArrayToArrayBuffer(data);
-    let callArgsU8: u8[] = sdk.MsgPack.serialize<IsDelegatedToArgs>(callArgs);
-    let callResult = sdk.HostFunctions.call(delegator, 'is_delegated_to', callArgsU8);
-    if (callResult.success) {
-        let resultBytes = sdk.Utils.arrayBufferToU8Array(callResult.result);
-        if (resultBytes.length > 0 && resultBytes[0] == 0xc3) {
-            result = true;
-        }
-    }
-
-    return result;
-}
-
 export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i32): sdk.Types.TCombinedPtr {
     let ctxU8Arr: u8[] = sdk.MemUtils.u8ArrayFromMem(ctxAddress, ctxSize);
     let ctx = sdk.MsgPack.ctxDecode(ctxU8Arr);
@@ -181,7 +156,6 @@ export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i
     // comment the following line to make init callable only from inside core's code
     methodsMap.set('init', initInternal);
     methodsMap.set('contract_registration', contractRegistration);
-    methodsMap.set('service_contract_update', updateServiceSmartContract);
     methodsMap.set('add_preapproved_contract', addPreapprovedContract);
     methodsMap.set('remove_preapproved_contract', removePreapprovedContracts);
 
@@ -201,6 +175,7 @@ export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i
 
     methodsMap.set('consume_fuel', consumeFuel);
     methodsMap.set('redistribute_remainders', redistributeRemainders);
+    methodsMap.set('contract_updatable', contractUpdatable);
 
     if (!methodsMap.has(ctx.method)) {
         let success = false;
@@ -208,6 +183,24 @@ export function run(ctxAddress: i32, ctxSize: i32, argsAddress: i32, argsSize: i
         return sdk.MsgPack.appOutputEncode(success, resultBytes);
     }
     return methodsMap.get(ctx.method)(ctx, argsU8);
+}
+
+function isDelegatedTo(delegator: string, delegate: string, action: string, data: u8[]): bool {
+    let result = false;
+    let callArgs = new IsDelegatedToArgs();
+    callArgs.delegate = delegate;
+    callArgs.action = action;
+    callArgs.data = sdk.Utils.u8ArrayToArrayBuffer(data);
+    let callArgsU8: u8[] = sdk.MsgPack.serialize<IsDelegatedToArgs>(callArgs);
+    let callResult = sdk.HostFunctions.call(delegator, 'is_delegated_to', callArgsU8);
+    if (callResult.success) {
+        let resultBytes = sdk.Utils.arrayBufferToU8Array(callResult.result);
+        if (resultBytes.length > 0 && resultBytes[0] == 0xc3) {
+            result = true;
+        }
+    }
+
+    return result;
 }
 
 // this is callable from wasm module's exports directly by core's code, just like any other contract's "run"
@@ -333,21 +326,6 @@ function contractRegistration(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Type
     return sdk.MsgPack.appOutputEncode(internalResult.success, internalResult.result);
 }
 
-function updateServiceSmartContract(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombinedPtr {
-    if(!thisCanBeUpdated) {
-        return sdk.MsgPack.appOutputEncode(false, sdk.Utils.stringtoU8Array(Errors.UPDATE_NOT_ENABLED));
-    }
-    if(!isAdmin(ctx.caller)) {
-        return sdk.MsgPack.appOutputEncode(false, sdk.Utils.stringtoU8Array(Errors.NOT_AUTHORIZED));
-    }
-    let args: ContractRegistrationArgs = sdk.MsgPack.deserialize<ContractRegistrationArgs>(argsU8);
-    let internalResult = contractRegistrationInternal(ctx, args, false);
-    if(internalResult.success) {
-        sdk.HostFunctions.emit('service_contract_update',sdk.HostFunctions.loadData(`${contractsVersionsSectionKey}:${args.name}:${args.version}`));
-    }
-    return sdk.MsgPack.appOutputEncode(internalResult.success, internalResult.result);
-}
-
 function contractRegistrationInternal(ctx: sdk.Types.AppContext, args: ContractRegistrationArgs, checkPermissions: bool = true): RawAppOutput {
     let metaData: ContractRegistrationData = new ContractRegistrationData();
     metaData.name = args.name;
@@ -358,7 +336,7 @@ function contractRegistrationInternal(ctx: sdk.Types.AppContext, args: ContractR
 
     let contractHashBin = sdk.HostFunctions.sha256(sdk.Utils.arrayBufferToU8Array(args.bin));
     let contractMutliHashBin: u8[] = [0x12 as u8, 0x20 as u8].concat(contractHashBin);
-    let contractHashStr = arrayBufferToHexString(sdk.Utils.u8ArrayToArrayBuffer(contractHashBin));
+    let contractHashStr = sdk.Utils.arrayBufferToHexString(sdk.Utils.u8ArrayToArrayBuffer(contractHashBin));
     let contractMutliHashStr = `1220${contractHashStr}`;
 
     let removeFromList = false;
@@ -393,6 +371,15 @@ function contractRegistrationInternal(ctx: sdk.Types.AppContext, args: ContractR
     }
 
     return new RawAppOutput(true, serializeString(contractMutliHashStr));
+}
+
+function contractIsRegistered(refHashHex: string): bool {
+    const metadataKey = `${contractsMetadataSectionKey}:${refHashHex}`;
+    const data = sdk.HostFunctions.loadData(metadataKey);
+    if (data.length > 0) {
+        return true;
+    }
+    return false;
 }
 
 // checks whether an account is also admin
@@ -607,8 +594,7 @@ function writeAssetStats(stats: FuelAssetStats): void {
 }
 
 function balance(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombinedPtr {
-    const accId = deserializeString(argsU8);
-    return sdk.MsgPack.appOutputEncode(true, sdk.HostFunctions.loadAsset(accId));
+    return sdk.MsgPack.appOutputEncode(true, sdk.HostFunctions.loadAsset(ctx.caller));
 }
 
 function readBalance(account: string): u64 {
@@ -706,12 +692,14 @@ function consumeFuel(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombin
         return sdk.MsgPack.appOutputEncode(false, sdk.Utils.stringtoU8Array(Errors.NOT_AUTHORIZED));
     }
     if (!fuelConsumptionActive) {
-        return sdk.MsgPack.appOutputEncode(true, [0xc3]);
+        let result = new ConsumeFuelReturn(true, 0);
+        return sdk.MsgPack.appOutputEncode(true, serializeConsumeFuelReturn(result));
     }
     let args = sdk.MsgPack.deserialize<ConsumeFuelArgs>(argsU8);
     // if transaction was performed by myself, do nothing. otherwise it's a loop
     if (args.from == ctx.owner) {
-        return sdk.MsgPack.appOutputEncode(true, [0xc3]);
+        let result = new ConsumeFuelReturn(true, 0);
+        return sdk.MsgPack.appOutputEncode(true, serializeConsumeFuelReturn(result));
     }
     let internalResult = consumeFuelInternal(args.from, args.units);
     return sdk.MsgPack.appOutputEncode(internalResult.success, internalResult.result);
@@ -790,4 +778,71 @@ function redistributeRemainders(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Ty
     const remainderAccountBalance = readBalance(remainderAccount) //sdk.HostFunctions.loadAsset(remainderAccount);
     const internalResult = consumeFuelInternal(remainderAccount, remainderAccountBalance);
     return sdk.MsgPack.appOutputEncode(internalResult.success, internalResult.result);
+}
+
+function contractUpdatable(ctx: sdk.Types.AppContext, argsU8: u8[]): sdk.Types.TCombinedPtr {
+    let success: bool = false;
+    let result: u8[] = [falseByte];
+    let args: ContractUpdatableArgs = deserializeContractUpdatableArgs(argsU8);
+
+    if (args.account.length <= 0) {
+        return sdk.MsgPack.appOutputEncode(false, sdk.Utils.stringtoU8Array('Missing account.'));
+    }
+
+    if (args.currentContract.length <= 0) {
+        if (contractIsRegistered(args.newContract)) {
+            if (args.account.charAt(0) == '#') {
+                success = true;
+                result = [trueByte];
+            } else {
+                if (args.account == ctx.caller || networkIsInTestMode) {
+                    success = true;
+                    result = [trueByte];
+                } else {
+                    success = true;
+                    result = [falseByte];
+                }
+            }
+        } else {
+            success = false;
+            result = sdk.Utils.stringtoU8Array(Errors.UNKNOWN_CONTRACT);
+        }
+    } else if (args.newContract != '00') {
+        if (contractIsRegistered(args.newContract)) {
+            if (args.account == ctx.owner) {
+                if (thisCanBeUpdated) {
+                    success = true;
+                    result = [trueByte];
+                } else {
+                    success = true;
+                    result = [falseByte];
+                }
+            } else {
+                if (networkIsInTestMode) {
+                    success = true;
+                    result = [trueByte];
+                } else {
+                    success = true;
+                    result = [falseByte];
+                }
+            }
+        } else {
+            success = false;
+            result = sdk.Utils.stringtoU8Array(Errors.UNKNOWN_CONTRACT);
+        }
+    } else {
+        if (args.account == ctx.owner) {
+            success = true;
+            result = [falseByte];
+        } else {
+            if (networkIsInTestMode) {
+                success = true;
+                result = [trueByte];
+            } else {
+                success = true;
+                result = [falseByte];
+            }
+        }
+    }
+    return sdk.MsgPack.appOutputEncode(success, result);
 }

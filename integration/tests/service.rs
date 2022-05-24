@@ -46,9 +46,9 @@ const SERVICE_ID: &str = "TRINCI";
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
-        map.insert(SERVICE_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1));
-        map.insert(SUBMITTER_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2));
-        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3));
+        map.insert(SERVICE_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, false));
+        map.insert(SUBMITTER_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, false));
+        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3, false));
         map
     };
     static ref CRYPTO_APP_HASH: Hash = common::app_hash("crypto.wasm").unwrap();
@@ -151,7 +151,7 @@ fn check_contract_registration_rxs_first(rxs: Vec<Receipt>) {
     // 0. Call to an unregistered contract. Expected to fail.
     assert!(!rxs[0].success);
     let error = String::from_utf8_lossy(&rxs[0].returns);
-    assert_eq!(error, "resource not found: smart contract not found");
+    assert_eq!(error, "invalid contract hash");
     // 1. Initialize the service
     assert!(rxs[1].success);
     // 2. Register the contract.
@@ -179,7 +179,7 @@ fn check_contract_registration_rxs_second(rxs: Vec<Receipt>) {
 #[test]
 fn test_contract_registration() {
     // Instance the application without contracts pre-registration.
-    let mut app = TestApp::new("", true);
+    let mut app = TestApp::new("");
 
     // Create and store the service account.
     create_service_account(&mut app);
@@ -190,8 +190,6 @@ fn test_contract_registration() {
     check_contract_registration_rxs_first(rxs);
 
     // Check registered contract availability.
-    // WARNING: by design, the new contract is not available in transactions
-    // within the block that contains the registration.
     let txs = create_contract_registration_txs();
     let rxs = app.exec_txs(txs);
     check_contract_registration_rxs_second(rxs);

@@ -149,6 +149,7 @@ pub(crate) mod tests {
             from: "abc",
             to: "xyz",
             units: 42,
+            data: None,
         }
     }
     fn create_mint_args() -> MintArgs<'static> {

@@ -16,6 +16,10 @@ let newAcc = new t2lib.Account();
 async function init() {
     title('init');
     await newAcc.generate();
+    let val = await newAcc.keyPair.privateKey.getPKCS8();
+    console.log(`KEY : [${Buffer.from(val).toString('hex')}]`);
+
+    console.log(val);
     console.log(`NEW ACC: ${newAcc.accountId}`);
 };
 

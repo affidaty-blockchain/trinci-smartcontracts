@@ -19,8 +19,8 @@
 
 use integration::{
     common::{
-        self, AccountInfo, Asset, PUB_KEY1, PUB_KEY2, PUB_KEY3, PUB_KEY4, PVT_KEY1, PVT_KEY2,
-        PVT_KEY3, PVT_KEY4,
+        self, AccountInfo, PUB_KEY1, PUB_KEY2, PUB_KEY3, PUB_KEY4, PVT_KEY1, PVT_KEY2, PVT_KEY3,
+        PVT_KEY4,
     },
     TestApp,
 };
@@ -28,7 +28,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use trinci_core::crypto::Hash;
 use trinci_core::{base::serialize, Receipt, Transaction};
-use trinci_sdk::value;
+use trinci_sdk::{tai::Asset, value};
 
 lazy_static! {
     static ref STORAGE_APP_HASH: Hash = common::app_hash("storage.wasm").unwrap();
@@ -43,10 +43,10 @@ const DAVE_ALIAS: &str = "Dave";
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
-        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1));
-        map.insert(ALICE_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2));
-        map.insert(BOB_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3));
-        map.insert(DAVE_ALIAS, AccountInfo::new(PUB_KEY4, PVT_KEY4));
+        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, false));
+        map.insert(ALICE_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, false));
+        map.insert(BOB_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3, false));
+        map.insert(DAVE_ALIAS, AccountInfo::new(PUB_KEY4, PVT_KEY4, false));
         map
     };
 }
