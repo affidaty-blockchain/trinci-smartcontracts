@@ -151,7 +151,7 @@ fn check_contract_registration_rxs_first(rxs: Vec<Receipt>) {
     // 0. Call to an unregistered contract. Expected to fail.
     assert!(!rxs[0].success);
     let error = String::from_utf8_lossy(&rxs[0].returns);
-    assert_eq!(error, "invalid contract hash");
+    assert_eq!(error, "invalid contract hash: cannot bind the contract to the account");
     // 1. Initialize the service
     assert!(rxs[1].success);
     // 2. Register the contract.
