@@ -38,11 +38,11 @@ const CRYPTO_ALIAS: &str = "Dave";
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
-        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, false));
-        map.insert(ALICE_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, false));
-        map.insert(BOB_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3, false));
-        map.insert(DAVE_ALIAS, AccountInfo::new(PUB_KEY4, PVT_KEY4, false));
-        map.insert(CRYPTO_ALIAS, AccountInfo::new(PUB_KEY5, PVT_KEY5, false));
+        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, ""));
+        map.insert(ALICE_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, ""));
+        map.insert(BOB_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3, ""));
+        map.insert(DAVE_ALIAS, AccountInfo::new(PUB_KEY4, PVT_KEY4, ""));
+        map.insert(CRYPTO_ALIAS, AccountInfo::new(PUB_KEY5, PVT_KEY5, ""));
         map
     };
     static ref ASSET_APP_HASH: Hash = common::app_hash("asset.wasm").unwrap();

@@ -33,8 +33,11 @@ const TEST2_ALIAS: &str = "Test2";
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
-        map.insert(TEST_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, false));
-        map.insert(TEST2_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, true));
+        map.insert(TEST_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, ""));
+        map.insert(
+            TEST2_ALIAS,
+            AccountInfo::new(PUB_KEY2, PVT_KEY2, TEST2_ALIAS),
+        );
         map
     };
 }

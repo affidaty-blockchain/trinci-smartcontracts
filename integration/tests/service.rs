@@ -46,9 +46,9 @@ const SERVICE_ID: &str = "TRINCI";
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
-        map.insert(SERVICE_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, false));
-        map.insert(SUBMITTER_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, false));
-        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3, false));
+        map.insert(SERVICE_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, ""));
+        map.insert(SUBMITTER_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, ""));
+        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3, ""));
         map
     };
     static ref CRYPTO_APP_HASH: Hash = common::app_hash("crypto.wasm").unwrap();
@@ -151,7 +151,10 @@ fn check_contract_registration_rxs_first(rxs: Vec<Receipt>) {
     // 0. Call to an unregistered contract. Expected to fail.
     assert!(!rxs[0].success);
     let error = String::from_utf8_lossy(&rxs[0].returns);
-    assert_eq!(error, "invalid contract hash: cannot bind the contract to the account");
+    assert_eq!(
+        error,
+        "invalid contract hash: cannot bind the contract to the account"
+    );
     // 1. Initialize the service
     assert!(rxs[1].success);
     // 2. Register the contract.

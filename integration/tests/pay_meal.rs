@@ -48,16 +48,13 @@ const ASSET_ALIAS: &str = "Asset";
 lazy_static! {
     static ref ACCOUNTS_INFO: HashMap<&'static str, AccountInfo> = {
         let mut map = HashMap::new();
-        map.insert(PAY_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, false));
-        map.insert(
-            RESTAURATEUR_ALIAS,
-            AccountInfo::new(PUB_KEY2, PVT_KEY2, false),
-        );
-        map.insert(MARCO_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3, false));
-        map.insert(LUIGI_ALIAS, AccountInfo::new(PUB_KEY4, PVT_KEY4, false));
-        map.insert(BRUNO_ALIAS, AccountInfo::new(PUB_KEY5, PVT_KEY5, false));
-        map.insert(PIERO_ALIAS, AccountInfo::new(PUB_KEY6, PVT_KEY6, false));
-        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY7, PVT_KEY7, false));
+        map.insert(PAY_ALIAS, AccountInfo::new(PUB_KEY1, PVT_KEY1, ""));
+        map.insert(RESTAURATEUR_ALIAS, AccountInfo::new(PUB_KEY2, PVT_KEY2, ""));
+        map.insert(MARCO_ALIAS, AccountInfo::new(PUB_KEY3, PVT_KEY3, ""));
+        map.insert(LUIGI_ALIAS, AccountInfo::new(PUB_KEY4, PVT_KEY4, ""));
+        map.insert(BRUNO_ALIAS, AccountInfo::new(PUB_KEY5, PVT_KEY5, ""));
+        map.insert(PIERO_ALIAS, AccountInfo::new(PUB_KEY6, PVT_KEY6, ""));
+        map.insert(ASSET_ALIAS, AccountInfo::new(PUB_KEY7, PVT_KEY7, ""));
         map
     };
 }

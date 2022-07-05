@@ -21,8 +21,8 @@ use std::{collections::HashMap, fs::File, io::Read, path::Path};
 use trinci_core::{
     base::{
         schema::{
-            BulkTransaction, BulkTransactions, SignedTransaction, TransactionData,
-            TransactionDataBulkNodeV1, TransactionDataBulkV1, UnsignedTransaction,
+            BulkTransaction, BulkTransactions, EmptyTransactionDataV1, SignedTransaction,
+            TransactionData, TransactionDataBulkNodeV1, TransactionDataBulkV1, UnsignedTransaction,
         },
         serialize::{rmp_deserialize, rmp_serialize},
     },
@@ -89,12 +89,12 @@ pub struct AccountInfo {
 }
 
 impl AccountInfo {
-    pub fn new(pub_key: &str, pvt_key: &str, nfa: bool) -> Self {
-        let mut id = String::new();
-        if nfa {
-            id.push('#');
-        }
-        id.push_str(&p384_hex_key_to_account_id(pub_key));
+    pub fn new(pub_key: &str, pvt_key: &str, alias: &str) -> Self {
+        let id = if alias.is_empty() {
+            p384_hex_key_to_account_id(pub_key)
+        } else {
+            format!("#{}", alias)
+        };
         AccountInfo {
             id,
             pub_key: pub_key.to_owned(),
@@ -187,6 +187,24 @@ pub fn create_bulk_root_tx(
         method: method.to_string(),
         caller: p384_hex_key_to_public_key(public_key),
         args,
+    });
+
+    UnsignedTransaction { data: root_data }
+}
+
+pub fn create_bulk_empty_root_tx(public_key: &str) -> UnsignedTransaction {
+    static mut MYNONCE: u64 = 0;
+
+    let nonce = unsafe {
+        MYNONCE += 1;
+        MYNONCE.to_be_bytes().to_vec()
+    };
+
+    let root_data = TransactionData::BulkEmpyRoot(EmptyTransactionDataV1 {
+        fuel_limit: 0,
+        nonce,
+        network: "skynet".to_string(),
+        caller: p384_hex_key_to_public_key(public_key),
     });
 
     UnsignedTransaction { data: root_data }
